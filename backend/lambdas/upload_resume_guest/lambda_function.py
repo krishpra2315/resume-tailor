@@ -11,7 +11,7 @@ def lambda_handler(event, context):
     try:
         body = json.loads(event['body'])
         file_data = base64.b64decode(body['file'])
-        file_name = body.get('filename', f"{uuid.uuid4()}.pdf")
+        file_name = f"{uuid.uuid4()}.pdf"
         s3_key = f"guest/{file_name}"
 
         s3.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=file_data)
@@ -20,7 +20,6 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'headers': {'Content-Type': 'application/json'},
             'body': json.dumps({
-                'message': 'Upload successful!',
                 's3_key': s3_key
             })
         }
