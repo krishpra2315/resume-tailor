@@ -17,6 +17,7 @@ import {
   faSignInAlt,
   faUserPlus,
   faUpload,
+  faSignOutAlt,
 } from "@fortawesome/free-solid-svg-icons";
 
 const inriaSans = Inria_Sans({
@@ -122,21 +123,25 @@ const Home: React.FC = () => {
 
       try {
         const fileBase64 = await fileToBase64(file);
-        const response = await uploadHTTPClient.uploadResumeGuest(
-          fileBase64,
-          file.name
-        );
-        setCurrentResumeS3Key(response.s3_key);
+
+        if (user) {
+          const response = await uploadHTTPClient.uploadResume(fileBase64);
+          setCurrentResumeS3Key(response.s3_key);
+        } else {
+          const response = await uploadHTTPClient.uploadResumeGuest(fileBase64);
+          setCurrentResumeS3Key(response.s3_key);
+        }
+
         setUploadStatus({
           message: "Resume uploaded successfully!",
           type: "success",
         });
       } catch (error) {
-        console.error("Error uploading resume:", error);
         setUploadStatus({
           message: "Resume upload failed. Please try again.",
           type: "error",
         });
+
         setResumeFile(null);
         setCurrentResumeS3Key(null);
       } finally {
@@ -147,6 +152,7 @@ const Home: React.FC = () => {
         message: "Please select a PDF, DOCX, or TXT file.",
         type: "error",
       });
+
       setResumeFile(null);
       setCurrentResumeS3Key(null);
     }
@@ -180,19 +186,19 @@ const Home: React.FC = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky top-0 z-10">
+      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-200 via-white to-blue-200 top-0 z-10">
         <span className="text-3xl font-bold">Resume Tailor</span>
         <div className="flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-3">
-              <span className="text-white">
+              <span className="text-[20px] text-black">
                 Welcome, {userName || user.username || "User"}!
               </span>
               <button
                 onClick={handleLogout}
-                className="px-3 py-1 text-sm font-semibold text-blue-600 bg-white rounded-md shadow-sm hover:bg-blue-100 transition duration-200 ease-in-out"
+                className="px-6 py-3 text-md text-black bg-white rounded-md shadow-sm border border-black hover:bg-blue-100 transition duration-200 ease-in-out flex items-center gap-2"
               >
-                Logout
+                Logout <FontAwesomeIcon icon={faSignOutAlt} />
               </button>
             </div>
           ) : (

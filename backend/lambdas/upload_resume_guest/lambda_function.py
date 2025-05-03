@@ -5,7 +5,7 @@ import uuid
 import os
 
 s3 = boto3.client('s3')
-BUCKET_NAME = os.environ.get('BUCKET_NAME', 'resume-tailor-bucket.kp')
+BUCKET_NAME = os.environ.get('BUCKET_NAME', '')
 
 def lambda_handler(event, context):
     try:
