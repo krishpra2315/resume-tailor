@@ -21,6 +21,7 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
+import Image from "next/image";
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
@@ -253,35 +254,48 @@ const Home: React.FC = () => {
         </div>
       </nav>
 
-      <div className="flex flex-col flex-1 px-20 py-15">
-        <p className="text-[50px] font-bold text-black max-w-2xl">
-          Resume Tailoring, made easy.
-        </p>
-        <p className="text-xl text-gray-500 max-w-2xl ml-1">
-          We use the most recent technology to tailor your resume to any job.{" "}
-          <br />
-          Start by uploading your resume and job description below, we'll take
-          care of the rest.
-          <br />
-        </p>
-        <div className="pt-4 text-gray-500 text-[16px] underline ml-1">
-          <a href="#resume-upload-area">
-            Score how well your resume matches a job description.
-          </a>
-          <br />
-          <a
-            onClick={() => {
-              if (user) {
-                router.push("/dashboard");
-              } else {
-                handleSignUp();
-              }
-            }}
-            className="cursor-pointer"
-          >
-            Make an account and upload a master resume for our best tailoring
-            features.
-          </a>
+      <div className="flex flex-row items-center justify-center pr-20 py-15">
+        <div className="flex-1 flex justify-center mr-30 border-2 border-purple-100 rounded-lg">
+          <Image
+            src="/images/resume-tailor-demo.png"
+            alt="Resume Tailor Demo"
+            width={800}
+            height={800}
+            className="max-w-full h-auto"
+            draggable={false}
+          />
+        </div>
+
+        <div className="flex flex-col flex-1">
+          <p className="text-[50px] font-bold text-black max-w-2xl">
+            Resume Tailoring, made easy.
+          </p>
+          <p className="text-xl text-gray-500 max-w-2xl ml-1">
+            We use the most recent technology to tailor your resume to any job.{" "}
+            <br />
+            Start by uploading your resume and job description below, we'll take
+            care of the rest.
+            <br />
+          </p>
+          <div className="pt-4 text-gray-500 text-[16px] underline ml-1">
+            <a href="#resume-upload-area">
+              Score how well your resume matches a job description.
+            </a>
+            <br />
+            <a
+              onClick={() => {
+                if (user) {
+                  router.push("/dashboard");
+                } else {
+                  handleSignUp();
+                }
+              }}
+              className="cursor-pointer"
+            >
+              Make an account and upload a master resume for our best tailoring
+              features.
+            </a>
+          </div>
         </div>
       </div>
 
