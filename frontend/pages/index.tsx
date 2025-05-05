@@ -18,7 +18,9 @@ import {
   faUserPlus,
   faUpload,
   faSignOutAlt,
+  faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
+import scoreHTTPClient from "@/http/scoreHTTPClient";
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
@@ -40,13 +42,14 @@ const Home: React.FC = () => {
     message: string;
     type: "success" | "error";
   } | null>(null);
+  const [isScoring, setIsScoring] = useState<boolean>(false);
 
   useEffect(() => {
     const checkUser = async () => {
       try {
-        const currentUser = await getCurrentUser();
+        const currentUser: AuthUser | null = await getCurrentUser();
+        console.log(currentUser);
         setUser(currentUser);
-
         try {
           const attributes = await fetchUserAttributes();
           const name = attributes.name || attributes.given_name;
@@ -102,61 +105,66 @@ const Home: React.FC = () => {
     []
   );
 
-  const handleResumeFileChange = useCallback(async (file: File | null) => {
-    setUploadStatus(null);
+  const handleResumeFileChange = useCallback(
+    async (file: File | null) => {
+      setUploadStatus(null);
 
-    if (!file) {
-      setResumeFile(null);
-      setCurrentResumeS3Key(null);
-      return;
-    }
+      if (!file) {
+        setResumeFile(null);
+        setCurrentResumeS3Key(null);
+        return;
+      }
 
-    if (
-      file.type === "application/pdf" ||
-      file.type ===
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      file.type === "text/plain"
-    ) {
-      setResumeFile(file);
-      setCurrentResumeS3Key(null);
-      setIsUploading(true);
+      if (
+        file.type === "application/pdf" ||
+        file.type ===
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        file.type === "text/plain"
+      ) {
+        setResumeFile(file);
+        setIsUploading(true);
 
-      try {
-        const fileBase64 = await fileToBase64(file);
+        try {
+          const fileBase64 = await fileToBase64(file);
 
-        if (user) {
-          const response = await uploadHTTPClient.uploadResume(fileBase64);
-          setCurrentResumeS3Key(response.s3_key);
-        } else {
-          const response = await uploadHTTPClient.uploadResumeGuest(fileBase64);
-          setCurrentResumeS3Key(response.s3_key);
+          let response;
+          console.log(user);
+          if (user) {
+            response = await uploadHTTPClient.uploadResume(fileBase64);
+            setCurrentResumeS3Key(response.s3_key);
+          } else {
+            response = await uploadHTTPClient.uploadResumeGuest(fileBase64);
+            setCurrentResumeS3Key(response.s3_key);
+          }
+          console.log(response);
+          console.log(currentResumeS3Key);
+          setUploadStatus({
+            message: "Resume uploaded successfully!",
+            type: "success",
+          });
+        } catch (error) {
+          setUploadStatus({
+            message: "Resume upload failed. Please try again.",
+            type: "error",
+          });
+
+          setResumeFile(null);
+          setCurrentResumeS3Key(null);
+        } finally {
+          setIsUploading(false);
         }
-
+      } else {
         setUploadStatus({
-          message: "Resume uploaded successfully!",
-          type: "success",
-        });
-      } catch (error) {
-        setUploadStatus({
-          message: "Resume upload failed. Please try again.",
+          message: "Please select a PDF, DOCX, or TXT file.",
           type: "error",
         });
 
         setResumeFile(null);
         setCurrentResumeS3Key(null);
-      } finally {
-        setIsUploading(false);
       }
-    } else {
-      setUploadStatus({
-        message: "Please select a PDF, DOCX, or TXT file.",
-        type: "error",
-      });
-
-      setResumeFile(null);
-      setCurrentResumeS3Key(null);
-    }
-  }, []);
+    },
+    [user]
+  );
 
   const handleDrop = useCallback(
     (event: React.DragEvent<HTMLDivElement>) => {
@@ -176,17 +184,42 @@ const Home: React.FC = () => {
     setJobDescription(event.target.value);
   };
 
+  const handleScoreResume = async () => {
+    setIsScoring(true);
+    const response = await scoreHTTPClient.scoreResume(
+      currentResumeS3Key as string,
+      jobDescription
+    );
+
+    const resultId = response.resultId;
+    router.push(`/score/${resultId}`);
+    setIsScoring(false);
+  };
+
   return (
     <div
-      className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-200 via-white to-blue-200 ${inriaSans.className}`}
+      className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-100 via-white to-purple-100 ${inriaSans.className}`}
     >
+      {isScoring && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
+        >
+          <FontAwesomeIcon
+            icon={faSpinner}
+            spin
+            className="text-white text-[100px]"
+          />
+        </div>
+      )}
+
       <Head>
         <title>Resume Tailor</title>
         <meta name="description" content="Tailor your resume to perfection" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-200 via-white to-blue-200 top-0 z-10">
+      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-100 via-white to-purple-100 top-0 z-10">
         <span className="text-3xl font-bold">Resume Tailor</span>
         <div className="flex items-center gap-4">
           {user ? (
@@ -296,16 +329,14 @@ const Home: React.FC = () => {
             onDrop={handleDrop}
             className={`p-10 border-dashed border-2 rounded-lg shadow w-full md:w-1/2 h-100 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 ease-in-out ${
               isUploading
-                ? "bg-gray-200 border-gray-400 cursor-wait" // Indicate loading
+                ? "bg-gray-200 border-gray-400"
                 : isDraggingOver
                 ? "border-blue-500 bg-blue-30"
                 : "border-blue-300 bg-white"
             }`}
           >
-            {/* --- Loading Indicator --- */}
             {isUploading ? (
               <div className="flex flex-col items-center">
-                {/* You could add a spinner icon here */}
                 <p className="text-gray-600 text-lg font-semibold">
                   Uploading...
                 </p>
@@ -361,23 +392,30 @@ const Home: React.FC = () => {
           </div>
         </div>
         <button
-          onClick={() => alert("Scoring not implemented yet!")}
-          className={`mt-8 transition-colors duration-300 text-white text-lg font-semibold px-8 py-2 rounded-md shadow ${
-            resumeFile && jobDescription && !isUploading
+          onClick={handleScoreResume}
+          className={`mt-8 transition-colors duration-300 text-white text-lg font-semibold px-8 py-2 rounded-md shadow flex items-center justify-center gap-2 ${
+            resumeFile && jobDescription && !isUploading && !isScoring
               ? "bg-blue-500 hover:bg-blue-600"
               : "bg-gray-400 cursor-not-allowed"
           }`}
-          disabled={!(resumeFile && jobDescription) || isUploading}
+          disabled={!(resumeFile && jobDescription) || isUploading || isScoring}
         >
-          {isUploading ? "Uploading..." : "Score Resume"}
+          {isScoring ? (
+            <>
+              <FontAwesomeIcon icon={faSpinner} spin /> Scoring...
+            </>
+          ) : isUploading ? (
+            <>
+              <FontAwesomeIcon icon={faSpinner} spin /> Uploading...
+            </>
+          ) : (
+            "Score Resume"
+          )}
         </button>
       </div>
 
-      {/* Footer: White background, blue text */}
       <footer className="flex items-center justify-center w-full h-16 border-t border-blue-200 bg-white mt-auto">
-        {" "}
-        {/* Adjusted border and bg */}
-        <p className="text-blue-800">© 2024 Resume Tailor</p> {/* Blue text */}
+        <p className="text-blue-800">© 2024 Resume Tailor</p>
       </footer>
     </div>
   );
