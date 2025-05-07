@@ -3,6 +3,7 @@ import base64
 import boto3
 import os
 from datetime import datetime
+import time
 
 s3 = boto3.client("s3")
 textract = boto3.client("textract")
@@ -30,13 +31,40 @@ def lambda_handler(event, context):
             ContentDisposition="inline"
         )
 
-        # Step 2: Extract text with Textract
-        textract_response = textract.detect_document_text(
-            Document={"S3Object": {"Bucket": BUCKET_NAME, "Name": s3_key}}
+        response = textract.start_document_text_detection(
+            DocumentLocation={"S3Object": {"Bucket": BUCKET_NAME, "Name": s3_key}}
         )
+        job_id = response["JobId"]
 
-        lines = [b["Text"] for b in textract_response["Blocks"] if b["BlockType"] == "LINE"]
-        resume_text = "\n".join(lines)
+        max_retries = 20
+        delay = 1  # seconds
+        for j in range(max_retries):
+            result = textract.get_document_text_detection(JobId=job_id)
+            status = result["JobStatus"]
+
+            if status == "SUCCEEDED":
+                break
+            elif status in ("FAILED", "PARTIAL_SUCCESS"):
+                raise Exception(f"Textract job failed with status: {status}")
+            time.sleep(delay)
+            print(f"Textract job {job_id} is {status}, attempt {j+1} of {max_retries}")
+        else:
+            raise TimeoutError("Textract job did not finish in time.")
+    
+        all_blocks = []
+        next_token = None
+        while True:
+            if next_token:
+                page_result = textract.get_document_text_detection(JobId=job_id, NextToken=next_token)
+            else:
+                page_result = result
+
+            all_blocks.extend(page_result["Blocks"])
+            next_token = page_result.get("NextToken")
+            if not next_token:
+                break
+            
+        resume_text = "\n".join([b["Text"] for b in all_blocks if b["BlockType"] == "LINE"])
 
         # Step 3: Send to Claude to extract structured items
         prompt = f"""

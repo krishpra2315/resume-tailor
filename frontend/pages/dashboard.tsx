@@ -5,15 +5,14 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronRight,
   faChevronLeft,
-  faChevronDown,
+  faDownload,
+  faSave,
+  faFileWord,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/router";
 import { getCurrentUser } from "@aws-amplify/auth";
 import type { AuthUser } from "@aws-amplify/auth";
-import masterHTTPClient, {
-  GetMasterResumeResponseBody,
-} from "@/http/masterHTTPClient";
 import { fileToBase64 } from "@/utils/upload";
 import DismissableAlert from "@/components/DismissableAlert";
 import {
@@ -24,7 +23,9 @@ import {
   faLightbulb,
   faFileLines,
 } from "@fortawesome/free-solid-svg-icons";
-
+import masterHTTPClient from "@/http/masterHTTPClient";
+import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
+import scoreHTTPClient from "@/http/scoreHTTPClient";
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "700"],
@@ -59,9 +60,21 @@ export default function Dashboard() {
   const [jobDescription, setJobDescription] = useState<string>("");
   const [isResumePreviewCollapsed, setIsResumePreviewCollapsed] =
     useState<boolean>(false);
+  const [isTailoring, setIsTailoring] = useState<boolean>(false);
+  const [viewTailoredResume, setViewTailoredResume] = useState<boolean>(false);
+  const [tailoredResumeEntries, setTailoredResumeEntries] = useState<
+    ResumeEntry[]
+  >([]);
+  const [isSavingPdf, setIsSavingPdf] = useState<boolean>(false);
+  const [savePdfStatus, setSavePdfStatus] = useState<string | null>(null);
+  const [savePdfFilename, setSavePdfFilename] = useState<string>("");
+  const [savePdfPath, setSavePdfPath] = useState<string | null>(null);
+
+  const [isScoring, setIsScoring] = useState<boolean>(false);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resumeViewRef = useRef<ResumeViewHandles>(null);
 
   useEffect(() => {
     const checkUserAndFetchResume = async () => {
@@ -159,6 +172,73 @@ export default function Dashboard() {
     setIsResumePreviewCollapsed(!isResumePreviewCollapsed);
   };
 
+  const handleTailorClick = async () => {
+    try {
+      setIsTailoring(true);
+      const response = await masterHTTPClient.tailorMasterResume(
+        jobDescription
+      );
+      setTailoredResumeEntries(response.resumeItems);
+      setIsTailoring(false);
+      setViewTailoredResume(true);
+    } catch (error) {
+      console.error("Tailor failed:", error);
+    } finally {
+      setIsTailoring(false);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    if (resumeViewRef.current) {
+      if (savePdfFilename === "") {
+        resumeViewRef.current.downloadAsPdf();
+      } else {
+        resumeViewRef.current.downloadAsPdf(savePdfFilename);
+      }
+    }
+  };
+
+  const handleSavePdf = async () => {
+    if (resumeViewRef.current) {
+      if (savePdfFilename === "") {
+        setSavePdfStatus("Please enter a filename.");
+        return;
+      }
+
+      setIsSavingPdf(true);
+      setSavePdfStatus("Saving PDF...");
+      try {
+        const s3Key = await resumeViewRef.current.savePdfToServer(
+          savePdfFilename
+        );
+        setSavePdfPath(s3Key);
+        setSavePdfStatus("PDF saved successfully!");
+      } catch (error) {
+        setSavePdfStatus("Failed to save PDF. Please try again.");
+        console.error("Failed to save PDF to server:", error);
+      } finally {
+        setIsSavingPdf(false);
+        setTimeout(() => setSavePdfStatus(null), 5000);
+      }
+    }
+  };
+
+  const handleScore = async () => {
+    if (savePdfPath) {
+      setIsScoring(true);
+      const response = await scoreHTTPClient.scoreResume(
+        savePdfPath as string,
+        jobDescription
+      );
+
+      const resultId = response.resultId;
+      router.push(`/score/${resultId}`);
+      setIsScoring(false);
+    } else {
+      setSavePdfStatus("Please save the PDF before scoring.");
+    }
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -167,6 +247,19 @@ export default function Dashboard() {
     <div
       className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-100 via-white to-purple-100 ${inriaSans.className}`}
     >
+      {isTailoring && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
+        >
+          <FontAwesomeIcon
+            icon={faSpinner}
+            spin
+            className="text-white text-[100px]"
+          />
+        </div>
+      )}
+
       <Head>
         <title>Dashboard - Resume Tailor</title>
         <meta
@@ -212,7 +305,7 @@ export default function Dashboard() {
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col p-8 justify-start items-center bg-white mx-2 mb-2 rounded-xl">
+      <div className="flex-1 flex flex-col p-4 justify-start items-center bg-white mx-2 mb-2 rounded-xl">
         {activeTab === "master" && (
           <>
             <div className="w-full max-w-6xl mb-4">
@@ -309,7 +402,7 @@ export default function Dashboard() {
               {/* Collapse Button */}
               <button
                 onClick={handleToggleCollapse}
-                className={`text-white bg-blue-500 h-10 w-10 rounded-full my-auto hover:bg-blue-600 lg:inline-block hidden p-1 mr-4 transition-all duration-300 ease-in-out ml-[-40px]`}
+                className={`text-white bg-blue-500 h-10 w-10 rounded-full my-auto hover:bg-blue-600 lg:inline-block hidden p-1 mr-4 transition-all duration-300 ease-in-out ml-[-35px]`}
                 aria-label={
                   isResumePreviewCollapsed
                     ? "Expand Preview"
@@ -327,6 +420,8 @@ export default function Dashboard() {
               {/* Middle Column: Extracted Items */}
               <div
                 className={`flex flex-col mr-6 transition-[width] duration-300 ease-in-out ${
+                  viewTailoredResume ? "hidden" : "block"
+                } ${
                   isResumePreviewCollapsed
                     ? "w-full lg:w-2/3"
                     : "w-full lg:w-1/3"
@@ -376,40 +471,106 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Right Column: Job Description Input */}
-              <div className="w-full lg:w-1/3 flex flex-col">
-                <h2 className="text-2xl font-semibold text-gray-700 mb-4">
-                  Tailor Resume
-                </h2>
-                <div className="flex-1 flex flex-col">
-                  <textarea
-                    id="jobDescription"
-                    className="p-4 text-black border border-gray-300 rounded-lg bg-white shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Paste job description..."
-                    value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                    disabled={!masterResumeUrl || isUploading}
-                  />
+              {/* MODIFICATION: Original tailored view sections (lines 488-549) are replaced by the following block */}
+              {viewTailoredResume && (
+                <div
+                  className={`relative flex flex-col lg:flex-row ${
+                    isResumePreviewCollapsed
+                      ? "w-full lg:w-full"
+                      : "w-full lg:w-2/3"
+                  } flex-grow`}
+                >
                   <button
-                    // onClick={handleTailorClick} // Add functionality later
-                    className={`mt-4 w-full px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
-                      !masterResumeUrl || !jobDescription || isUploading
-                        ? "opacity-50 cursor-not-allowed"
-                        : ""
-                    }`}
-                    disabled={
-                      !masterResumeUrl || !jobDescription || isUploading
-                    } // Disable if no resume, no JD, or uploading
+                    onClick={() => setViewTailoredResume(false)}
+                    className="absolute top-2 right-2 z-20 bg-gray-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-lg font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                    aria-label="Close tailored view"
+                    title="Close tailored view"
                   >
-                    Tailor
+                    ✕
                   </button>
-                  {!masterResumeUrl && (
-                    <p className="text-xs text-center text-gray-500 mt-2">
-                      Upload a master resume first.
-                    </p>
-                  )}
+
+                  {/* Column 1: Tailored Resume View */}
+                  <div className="w-full lg:w-[60%] flex flex-col h-[80vh] p-1 lg:pr-3">
+                    <input
+                      type="text"
+                      value={savePdfFilename}
+                      onChange={(e) => setSavePdfFilename(e.target.value)}
+                      placeholder="Enter filename..."
+                      className="p-3 text-black border border-gray-300 mb-2 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <ResumeView
+                      ref={resumeViewRef}
+                      resumeEntries={tailoredResumeEntries}
+                    />
+                    <div className="flex flex-row mt-2 justify-between items-center gap-2 md:gap-4">
+                      <button
+                        onClick={handleDownloadPdf}
+                        className="flex-1 px-3 py-2 text-xs sm:text-sm lg:text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-1 lg:gap-2"
+                      >
+                        Download{" "}
+                        <FontAwesomeIcon
+                          icon={faDownload}
+                          className="hidden sm:inline ml-1"
+                        />
+                      </button>
+                      <button
+                        onClick={handleSavePdf}
+                        className={`flex-1 px-3 py-2 text-xs sm:text-sm lg:text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-1 lg:gap-2 ${
+                          isSavingPdf ? "opacity-50 cursor-not-allowed" : ""
+                        }`}
+                        disabled={isSavingPdf}
+                      >
+                        {isSavingPdf ? (
+                          <>
+                            <FontAwesomeIcon
+                              icon={faSpinner}
+                              spin
+                              className="mr-1 lg:mr-2"
+                            />{" "}
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            Save{" "}
+                            <FontAwesomeIcon
+                              icon={faSave}
+                              className="hidden sm:inline ml-1"
+                            />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {savePdfStatus && (
+                      <p
+                        className={`mt-2 text-sm text-center ${
+                          savePdfStatus.includes("successfully")
+                            ? "text-green-600"
+                            : "text-red-600"
+                        }`}
+                      >
+                        {savePdfStatus}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Column 2: Job Description for Tailored View */}
+                  <div className="flex flex-col w-full lg:w-[40%] h-[80vh] mt-4 lg:mt-0 p-1 lg:pl-3">
+                    <div className="bg-white p-3 md:p-4 border border-gray-300 overflow-y-auto rounded-lg flex-grow mb-2">
+                      <pre className="whitespace-pre-wrap text-xs md:text-sm text-gray-700 leading-relaxed font-sans">
+                        {jobDescription}
+                      </pre>
+                    </div>
+                    <div className="flex flex-col justify-center items-center">
+                      <button
+                        onClick={handleScore}
+                        className="w-full sm:w-3/4 md:w-1/2 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                      >
+                        Score <FontAwesomeIcon icon={faChevronRight} />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </>
         )}

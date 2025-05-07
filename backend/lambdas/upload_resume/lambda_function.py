@@ -35,8 +35,12 @@ def lambda_handler(event, context):
 
         body = json.loads(event['body'])
         file_data = base64.b64decode(body['file'])
-        file_name = f"{uuid.uuid4()}.pdf"
-        s3_key = f"users/uploads/{user_id}/{file_name}"
+        if 'filename' in body:
+            file_name = body['filename']
+            s3_key = f"users/tailored/{user_id}/{file_name}" # filename only for tailored resumes
+        else:
+            file_name = f"{uuid.uuid4()}.pdf"
+            s3_key = f"users/uploads/{user_id}/{file_name}"
 
         s3.put_object(Bucket=BUCKET_NAME, Key=s3_key, Body=file_data)
 

@@ -1,7 +1,7 @@
 import { fetchAuthSession } from "aws-amplify/auth";
 import fetchHTTPClient from "./fetchHTTPClient";
 
-interface ResumeEntry {
+export interface ResumeEntry {
   type: "experience" | "education" | "project" | string;
   title?: string;
   organization?: string;
@@ -21,6 +21,14 @@ export interface ProcessMasterResumeBody {
 
 export interface ProcessMasterResumeResponseBody {
   s3_key: string;
+}
+
+export interface TailorMasterResumeBody {
+  jobDescription: string;
+}
+
+export interface TailorMasterResumeResponseBody {
+  resumeItems: ResumeEntry[];
 }
 
 export default class masterHTTPClient {
@@ -43,6 +51,23 @@ export default class masterHTTPClient {
 
   static async getMasterResume(): Promise<GetMasterResumeResponseBody> {
     return await fetchHTTPClient<GetMasterResumeResponseBody>(`/master`, {
+      headers: {
+        Authorization: `Bearer ${
+          (await fetchAuthSession()).tokens?.accessToken?.toString() || ""
+        }`,
+      },
+    });
+  }
+
+  static async tailorMasterResume(
+    jobDescription: string
+  ): Promise<TailorMasterResumeResponseBody> {
+    const tailorMasterResumeRequestBody: TailorMasterResumeBody = {
+      jobDescription,
+    };
+    return await fetchHTTPClient<TailorMasterResumeResponseBody>(`/tailor`, {
+      method: "POST",
+      body: JSON.stringify(tailorMasterResumeRequestBody),
       headers: {
         Authorization: `Bearer ${
           (await fetchAuthSession()).tokens?.accessToken?.toString() || ""

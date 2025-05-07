@@ -3,6 +3,7 @@ import fetchHTTPClient from "./fetchHTTPClient";
 
 export interface UploadResumeBody {
   file: string;
+  filename?: string;
 }
 
 export interface UploadResumeResponseBody {
@@ -10,9 +11,13 @@ export interface UploadResumeResponseBody {
 }
 
 export default class uploadHTTPClient {
-  static async uploadResume(file: string): Promise<UploadResumeResponseBody> {
+  static async uploadResume(
+    file: string,
+    filename?: string
+  ): Promise<UploadResumeResponseBody> {
     const uploadResumeRequestBody: UploadResumeBody = {
       file,
+      filename,
     };
     return await fetchHTTPClient<UploadResumeResponseBody>(`/upload`, {
       method: "POST",
