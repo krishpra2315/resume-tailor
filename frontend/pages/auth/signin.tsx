@@ -35,10 +35,11 @@ const SignInPage: React.FC = () => {
         // Potentially redirect to a page to handle nextStep, e.g., MFA
         // router.push(`/auth/confirm-signin?username=${username}`);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error signing in:", err);
       setError(
-        err.message || "An unexpected error occurred. Please try again."
+        (err as Error).message ||
+          "An unexpected error occurred. Please try again."
       );
     } finally {
       setIsLoading(false);
@@ -136,7 +137,7 @@ const SignInPage: React.FC = () => {
         </form>
         <div className="text-sm text-center mt-4">
           <p className="text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/auth/signup">
               <span className="font-medium text-blue-600 hover:text-blue-500 cursor-pointer">
                 Sign Up

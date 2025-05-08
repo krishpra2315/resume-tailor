@@ -56,10 +56,10 @@ const SignUpPage: React.FC = () => {
       } else {
         setSuccessMessage("Sign up process initiated.");
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error signing up:", err);
       setError(
-        err.message ||
+        (err as Error).message ||
           "An unexpected error occurred during sign up. Please try again."
       );
     } finally {
@@ -79,10 +79,10 @@ const SignUpPage: React.FC = () => {
         "Account confirmed successfully! Attempting to sign you in..."
       );
       await handleAutoSignIn();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error confirming sign up:", err);
       setError(
-        err.message ||
+        (err as Error).message ||
           "Invalid confirmation code or an error occurred. Please try again."
       );
       setIsLoading(false);
