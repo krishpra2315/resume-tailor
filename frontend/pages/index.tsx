@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import {
-  signInWithRedirect,
   getCurrentUser,
   fetchUserAttributes,
   signOut,
@@ -72,11 +71,11 @@ const Home: React.FC = () => {
   }, []);
 
   const handleLogin = () => {
-    signInWithRedirect();
+    router.push("/auth/signin");
   };
 
   const handleSignUp = () => {
-    signInWithRedirect();
+    router.push("/auth/signup");
   };
 
   const handleLogout = async () => {
@@ -275,7 +274,7 @@ const Home: React.FC = () => {
                 if (user) {
                   router.push("/dashboard");
                 } else {
-                  handleSignUp();
+                  router.push("/auth/signup");
                 }
               }}
               className="cursor-pointer"
@@ -304,7 +303,7 @@ const Home: React.FC = () => {
             if (user) {
               router.push("/dashboard");
             } else {
-              handleSignUp();
+              router.push("/auth/signup");
             }
           }}
         >
