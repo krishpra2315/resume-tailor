@@ -1,5 +1,4 @@
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
-
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL; // update
 
 export default async function fetchHTTPClient<T>(
   endpoint: string,
