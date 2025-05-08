@@ -1,27 +1,54 @@
-import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
 import { ResumeEntry } from "@/http/masterHTTPClient";
 // Remove file-saver if only used for DOCX, but html2pdf.js handles saving.
 // import { saveAs } from "file-saver"; // Keep if used elsewhere, or remove.
-import html2pdf from "html2pdf.js"; // Import html2pdf.js
 import uploadHTTPClient from "@/http/uploadHTTPClient"; // Import the upload client
+import { getHtml2Pdf, isHtml2PdfLoaded } from "@/utils/html2pdfLoader";
 
 // CSS for PDF rendering mode
 const pdfStyles = `
   .pdf-render-mode {
-    line-height: 0 !important;
+    line-height: 1.5 !important;
+    font-size: 12pt !important;
   }
-  .pdf-render-mode h1,
-  .pdf-render-mode h2,
-  .pdf-render-mode h3,
+  .pdf-render-mode h1 {
+    font-size: 18pt !important;
+  }
+  .pdf-render-mode h2 {
+    font-size: 14pt !important;
+  }
+  .pdf-render-mode h3 {
+    font-size: 12pt !important;
+  }
   .pdf-render-mode p,
   .pdf-render-mode li,
-  .pdf-render-mode div,
-  .pdf-render-mode span,
-  .pdf-render-mode strong,
-  .pdf-render-mode em {
-    line-height: 1.4 !important; /* Or 'normal !important' - adjust as needed */
+  .pdf-render-mode div {
+    font-size: 12pt !important;
+    vertical-align: baseline !important;
+    margin-bottom: 0 !important;
   }
-  /* You might need to add more selectors if other text elements are used */
+  .pdf-render-mode .skills-entry strong {
+    font-size: 12.6pt !important;
+    display: inline !important;
+    vertical-align: baseline !important;
+  }
+  .pdf-render-mode .skills-entry span {
+    font-size: 12pt !important;
+    display: inline !important;
+    vertical-align: baseline !important;
+  }
+  /* Fix for any SVG or images that might be in the resume */
+  .pdf-render-mode img, 
+  .pdf-render-mode svg {
+    display: inline-block !important;
+    vertical-align: middle !important;
+  }
 `;
 
 const getPdfOptions = (filename?: string) => ({
@@ -33,6 +60,7 @@ const getPdfOptions = (filename?: string) => ({
     useCORS: true,
     logging: true,
     y: 0,
+    scrollY: 0,
   },
   jsPDF: { unit: "in", format: "letter", orientation: "portrait" },
 });
@@ -42,11 +70,24 @@ const prepareElementAndGetCleanUp = (element: HTMLElement) => {
   const originalStyle = element.getAttribute("style");
   const originalClassName = element.className;
 
+  // Create a style element for our PDF-specific styles
+  const styleElement = document.createElement("style");
+  styleElement.textContent = pdfStyles;
+  document.head.appendChild(styleElement);
+
+  // Add style rule for html2canvas temporary elements
+  const html2canvasStyleFix = document.createElement("style");
+  html2canvasStyleFix.textContent =
+    "body > div:last-child img { display: inline-block !important; }";
+  document.head.appendChild(html2canvasStyleFix);
+
   element.style.width = "100%";
   element.style.height = "auto";
   element.style.maxWidth = "none";
   element.style.aspectRatio = "auto";
-  element.style.padding = "0px";
+  element.style.padding = "20px";
+  // Increase font size for PDF rendering
+  element.style.fontSize = "12pt";
   element.classList.add("pdf-render-mode");
 
   return () => {
@@ -56,6 +97,10 @@ const prepareElementAndGetCleanUp = (element: HTMLElement) => {
       element.removeAttribute("style");
     }
     element.className = originalClassName;
+
+    // Remove our injected styles
+    document.head.removeChild(styleElement);
+    document.head.removeChild(html2canvasStyleFix);
   };
 };
 
@@ -71,6 +116,7 @@ interface ResumeViewProps {
 const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
   ({ resumeEntries }, ref) => {
     const resumePreviewRef = useRef<HTMLDivElement>(null);
+    const [html2pdfLoaded, setHtml2pdfLoaded] = useState(false);
 
     const sectionOrder: string[] = [
       "userInfo",
@@ -103,21 +149,64 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
       }
     );
 
+    // Load html2pdf.js when component mounts
+    useEffect(() => {
+      if (typeof window !== "undefined") {
+        const checkHtml2PdfLoaded = () => {
+          if (isHtml2PdfLoaded()) {
+            setHtml2pdfLoaded(true);
+            console.log("html2pdf loaded successfully");
+          } else {
+            // Check again after a short delay
+            setTimeout(checkHtml2PdfLoaded, 500);
+          }
+        };
+
+        checkHtml2PdfLoaded();
+      }
+    }, []);
+
     useImperativeHandle(ref, () => ({
       downloadAsPdf: (filename?: string) => {
         if (resumePreviewRef.current) {
+          // Check if html2pdf is loaded
+          if (!html2pdfLoaded) {
+            console.error("html2pdf is not loaded yet");
+            alert(
+              "PDF generation is not ready yet. Please try again in a moment."
+            );
+            return;
+          }
+
           const element = resumePreviewRef.current;
           const cleanup = prepareElementAndGetCleanUp(element);
           const pdfOptions = getPdfOptions(
             filename ? `${filename}.pdf` : "resume.pdf"
           );
 
-          html2pdf()
+          const html2pdfLib = getHtml2Pdf();
+          if (!html2pdfLib) {
+            console.error("html2pdf is not available");
+            alert("PDF generation is not available. Please try again later.");
+            cleanup();
+            return;
+          }
+
+          // Add extra style rule specifically for html2canvas
+          const html2canvasFixStyle = document.createElement("style");
+          document.head.appendChild(html2canvasFixStyle);
+          html2canvasFixStyle.sheet?.insertRule(
+            "body > div:last-child img { display: inline-block !important; }",
+            0
+          );
+
+          html2pdfLib()
             .from(element)
             .set(pdfOptions)
             .save()
             .then(() => {
               cleanup();
+              html2canvasFixStyle.remove();
             })
             .catch((err: any) => {
               console.error("Error generating PDF for download:", err);
@@ -125,6 +214,7 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
                 "Sorry, there was an error generating the PDF for download."
               );
               cleanup();
+              html2canvasFixStyle.remove();
             });
         } else {
           alert("Resume content not found. Cannot generate PDF for download.");
@@ -136,12 +226,28 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
           throw new Error("Resume content not found.");
         }
 
+        // Check if html2pdf is loaded
+        if (!html2pdfLoaded) {
+          console.error("html2pdf is not loaded yet");
+          alert(
+            "PDF generation is not ready yet. Please try again in a moment."
+          );
+          throw new Error("html2pdf is not loaded yet");
+        }
+
+        const html2pdfLib = getHtml2Pdf();
+        if (!html2pdfLib) {
+          console.error("html2pdf is not available");
+          alert("PDF generation is not available. Please try again later.");
+          throw new Error("html2pdf is not available");
+        }
+
         const element = resumePreviewRef.current;
         const cleanup = prepareElementAndGetCleanUp(element);
         const pdfOptions = getPdfOptions();
 
         try {
-          const pdfDataUri = await html2pdf()
+          const pdfDataUri = await html2pdfLib()
             .from(element)
             .set(pdfOptions)
             .outputPdf("datauristring");
@@ -193,20 +299,22 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
 
     return (
       <div
-        ref={resumePreviewRef} // Attach ref here
+        ref={resumePreviewRef}
         style={{
           fontFamily: "'Times New Roman', Times, serif",
           maxWidth: "800px",
+          width: "100%",
+          height: "100%",
+          maxHeight: "100%",
           padding: "30px",
+          margin: "0 auto",
           border: "1px solid #ccc",
           backgroundColor: "white",
           color: "#333",
           fontSize: "9pt",
           lineHeight: "1.4",
-          aspectRatio: "240/297",
           overflowY: "auto",
-          // Consider removing fixed height if DOCX conversion is problematic with it
-          // or ensure the content captured for DOCX is not constrained by this height
+          boxSizing: "border-box",
         }}
         className="resume-preview"
       >
@@ -253,21 +361,31 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
                 {renderSectionTitle(type)}
                 {entries.map((entry, index) => (
                   <div key={`${type}-${index}`} style={{ marginBottom: "2px" }}>
-                    {entry.title && (
-                      <p style={{ margin: "0", fontSize: "1em" }}>
+                    <p
+                      className="skills-entry"
+                      style={{
+                        margin: "0",
+                        fontSize: "1em",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {entry.title && (
                         <strong
-                          style={{ fontSize: "1.05em", fontWeight: "bold" }}
+                          style={{
+                            fontSize: "1.05em",
+                            fontWeight: "bold",
+                            display: "inline",
+                          }}
                         >
-                          {entry.title}:
+                          {entry.title}:{" "}
                         </strong>
-                        {entry.description && ` ${entry.description}`}
-                      </p>
-                    )}
-                    {!entry.title && entry.description && (
-                      <p style={{ margin: "0", fontSize: "1em" }}>
-                        {entry.description}
-                      </p>
-                    )}
+                      )}
+                      {entry.description && (
+                        <span style={{ display: "inline" }}>
+                          {entry.description}
+                        </span>
+                      )}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -347,5 +465,7 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
     );
   }
 );
+
+ResumeView.displayName = "ResumeView";
 
 export default ResumeView;

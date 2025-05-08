@@ -30,7 +30,6 @@ const getScoreColor = (score: number): string => {
   return "text-red-600";
 };
 
-// Function to determine score description
 const getScoreDescription = (score: number): string => {
   if (score >= 85) return "Great!";
   if (score >= 70) return "Good!";
@@ -70,12 +69,12 @@ export default function ScorePage({
       <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-100 via-white to-purple-100 top-0 z-10">
         <div className="flex flex-1 flex-row items-center gap-4">
           <Link href="/">
-            <span className="text-3xl font-bold cursor-pointer">
+            <span className="text-2xl font-bold cursor-pointer">
               Resume Tailor
             </span>
           </Link>
-          <span className="text-3xl font-bold">&gt;</span>
-          <span className="text-3xl font-bold">Results</span>
+          <span className="text-2xl">&gt;</span>
+          <span className="text-2xl">Results</span>
         </div>
       </nav>
 

@@ -255,18 +255,7 @@ const Home: React.FC = () => {
       </nav>
 
       <div className="flex flex-row items-center justify-center pr-20 py-15">
-        <div className="flex-1 flex justify-center mr-30 border-2 border-purple-100 rounded-lg">
-          <Image
-            src="/images/resume-tailor-demo.png"
-            alt="Resume Tailor Demo"
-            width={800}
-            height={800}
-            className="max-w-full h-auto"
-            draggable={false}
-          />
-        </div>
-
-        <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1 ml-20">
           <p className="text-[50px] font-bold text-black max-w-2xl">
             Resume Tailoring, made easy.
           </p>

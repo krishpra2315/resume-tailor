@@ -30,16 +30,17 @@ def lambda_handler(event, context):
         prompt = f"""
 You are a resume optimization assistant. Given a structured resume (as a list of JSON objects) and a job description, select the most relevant items (experience, education, projects, skills, certifications) that best match the job.
 
-When it comes to skills, include each of the sections like languages, technologies, etc. but only include the specific skills from those sections that are relevant to the job.
+Your goal is to create a tailored 1-page resume that highlights the best possible fit with the job, but also fills the page with high-quality content.
 
-Prioritize technical fit, clarity, and relevance. 
+When it comes to skills, include each of the sections (e.g., languages, technologies, tools) but only include specific skills from those sections that are relevant to the job. Do not include unrelated skills.
 
-Format your output as another list of JSON objects very similar to the input list of JSON objects that will fit in 1-page on a pdf if they were displayed as text. Make sure you only return resume items that are relevant to the job description.
-Make sure to include the userInfo item from the list and make sure it still fits on 1-page.
-
-For reference, a one page resume on average has 5-6 items other than the userInfo and skills where each item has on avergae 3-4 lines of text.
-
-Only return the resume items, no other text or comments.
+**IMPORTANT**:
+- Prioritize relevance to the job description above all.
+- However, if there are not enough highly relevant items to fill a page, include the next most related items to ensure the resume is a full page.
+- Always include the `userInfo` and `skills` objects.
+- Return a total of approximately 5-6 items **other than userInfo and skills**. Each item should average 4-5 lines of text.
+- If you're uncertain whether to include an item, err on the side of including it to maintain resume fullness.
+- Format your output as a list of JSON objects **with the same structure as the input list**, and do **not** include any explanatory text or comments.
 
 --- JOB DESCRIPTION START ---
 {job_description}
@@ -48,6 +49,7 @@ Only return the resume items, no other text or comments.
 --- USER RESUME ENTRIES (JSON LIST) ---
 {json.dumps(resume_entries)}
 """
+
 
         bedrock_response = bedrock.invoke_model(
             modelId=MODEL_ID,

@@ -31,6 +31,10 @@ export interface TailorMasterResumeResponseBody {
   resumeItems: ResumeEntry[];
 }
 
+export interface GetTailoredResumesResponseBody {
+  files: { name: string; url: string }[];
+}
+
 export default class masterHTTPClient {
   static async processMasterResume(
     file: string
@@ -68,6 +72,16 @@ export default class masterHTTPClient {
     return await fetchHTTPClient<TailorMasterResumeResponseBody>(`/tailor`, {
       method: "POST",
       body: JSON.stringify(tailorMasterResumeRequestBody),
+      headers: {
+        Authorization: `Bearer ${
+          (await fetchAuthSession()).tokens?.accessToken?.toString() || ""
+        }`,
+      },
+    });
+  }
+
+  static async getTailoredResumes(): Promise<GetTailoredResumesResponseBody> {
+    return await fetchHTTPClient<GetTailoredResumesResponseBody>(`/tailor`, {
       headers: {
         Authorization: `Bearer ${
           (await fetchAuthSession()).tokens?.accessToken?.toString() || ""

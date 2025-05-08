@@ -8,8 +8,9 @@ import {
   faDownload,
   faSave,
   faFileWord,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, forwardRef } from "react";
 import { useRouter } from "next/router";
 import { getCurrentUser } from "@aws-amplify/auth";
 import type { AuthUser } from "@aws-amplify/auth";
@@ -26,6 +27,35 @@ import {
 import masterHTTPClient from "@/http/masterHTTPClient";
 import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
+import dynamic from "next/dynamic";
+
+// Import html2pdf directly in the dashboard component
+let html2pdfLib: any = null;
+if (typeof window !== "undefined") {
+  import("html2pdf.js").then((module) => {
+    html2pdfLib = module.default;
+  });
+}
+
+// Import the ResumeView component directly for client-side only
+const ClientSideResumeView = dynamic(() => import("@/components/ResumeView"), {
+  ssr: false,
+});
+
+// Create a simple wrapper component for ResumeView
+const SimpleResumeViewWrapper = forwardRef<
+  ResumeViewHandles,
+  { resumeEntries: ResumeEntry[] }
+>((props, ref) => {
+  return (
+    <div className="resume-wrapper h-full w-full flex-1 overflow-hidden flex justify-center">
+      {typeof window !== "undefined" && <ResumeView {...props} ref={ref} />}
+    </div>
+  );
+});
+
+SimpleResumeViewWrapper.displayName = "SimpleResumeViewWrapper";
+
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "700"],
@@ -58,6 +88,8 @@ export default function Dashboard() {
     null
   );
   const [jobDescription, setJobDescription] = useState<string>("");
+  const [tailoredJobDescription, setTailoredJobDescription] =
+    useState<string>("");
   const [isResumePreviewCollapsed, setIsResumePreviewCollapsed] =
     useState<boolean>(false);
   const [isTailoring, setIsTailoring] = useState<boolean>(false);
@@ -71,6 +103,18 @@ export default function Dashboard() {
   const [savePdfPath, setSavePdfPath] = useState<string | null>(null);
 
   const [isScoring, setIsScoring] = useState<boolean>(false);
+
+  const [tailoredResumes, setTailoredResumes] = useState<
+    {
+      name: string;
+      url: string;
+    }[]
+  >([]);
+
+  const [selectedTailoredResume, setSelectedTailoredResume] = useState<{
+    name: string;
+    url: string;
+  } | null>(null);
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,8 +130,11 @@ export default function Dashboard() {
 
         try {
           const resumeData = await masterHTTPClient.getMasterResume();
+          const tailoredResumes = await masterHTTPClient.getTailoredResumes();
+          console.log(tailoredResumes);
           setMasterResumeUrl(resumeData.url);
           setResumeEntries(resumeData.entries);
+          setTailoredResumes(tailoredResumes.files);
           setResumeError(null);
         } catch (fetchError: any) {
           console.log("Failed to fetch master resume data:", fetchError);
@@ -116,6 +163,43 @@ export default function Dashboard() {
     };
     checkUserAndFetchResume();
   }, [router]);
+
+  // Auto-select the first tailored resume when switching to tailored tab or when tailored resumes are loaded
+  useEffect(() => {
+    if (
+      activeTab === "tailored" &&
+      tailoredResumes.length > 0 &&
+      !selectedTailoredResume
+    ) {
+      setSelectedTailoredResume(tailoredResumes[0]);
+    }
+  }, [activeTab, tailoredResumes, selectedTailoredResume]);
+
+  // Reset selected tailored resume when switching tabs
+  useEffect(() => {
+    if (activeTab === "master") {
+      setSelectedTailoredResume(null);
+      setTailoredJobDescription("");
+    } else if (
+      activeTab === "tailored" &&
+      tailoredResumes.length > 0 &&
+      !selectedTailoredResume
+    ) {
+      setSelectedTailoredResume(tailoredResumes[0]);
+      setTailoredJobDescription("");
+    }
+  }, [activeTab, tailoredResumes]);
+
+  useEffect(() => {
+    // This ensures html2pdf.js is only loaded in the browser
+    if (typeof window !== "undefined") {
+      // Optional: You can preload html2pdf.js here if needed
+      // const loadHtml2Pdf = async () => {
+      //   await import('html2pdf.js');
+      // };
+      // loadHtml2Pdf();
+    }
+  }, []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -188,18 +272,26 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownloadPdf = () => {
-    if (resumeViewRef.current) {
-      if (savePdfFilename === "") {
-        resumeViewRef.current.downloadAsPdf();
-      } else {
-        resumeViewRef.current.downloadAsPdf(savePdfFilename);
+  const handleDownloadPdf = useCallback(() => {
+    if (resumeViewRef.current && typeof window !== "undefined") {
+      try {
+        if (savePdfFilename === "") {
+          resumeViewRef.current.downloadAsPdf();
+        } else {
+          resumeViewRef.current.downloadAsPdf(savePdfFilename);
+        }
+      } catch (error) {
+        console.error("Error downloading PDF:", error);
+        // Show some user-friendly error message
+        alert("Failed to download PDF. Please try again.");
       }
+    } else {
+      console.warn("Resume view reference is not available");
     }
-  };
+  }, [savePdfFilename]);
 
-  const handleSavePdf = async () => {
-    if (resumeViewRef.current) {
+  const handleSavePdf = useCallback(async () => {
+    if (resumeViewRef.current && typeof window !== "undefined") {
       if (savePdfFilename === "") {
         setSavePdfStatus("Please enter a filename.");
         return;
@@ -221,7 +313,7 @@ export default function Dashboard() {
         setTimeout(() => setSavePdfStatus(null), 5000);
       }
     }
-  };
+  }, [savePdfFilename]);
 
   const handleScore = async () => {
     if (savePdfPath) {
@@ -239,6 +331,48 @@ export default function Dashboard() {
     }
   };
 
+  const handleScoreTailoredResume = async () => {
+    if (!selectedTailoredResume) {
+      alert("Please select a resume to score.");
+      return;
+    }
+
+    if (!tailoredJobDescription.trim()) {
+      alert("Please enter a job description to score against.");
+      return;
+    }
+
+    setIsScoring(true);
+    try {
+      // Extract the S3 key from the URL
+      // Assuming the URL is something like https://bucket-name.s3.region.amazonaws.com/path/to/file.pdf
+      const urlParts = selectedTailoredResume.url.split("/");
+      const s3Key = urlParts.slice(3).join("/");
+
+      const response = await scoreHTTPClient.scoreResume(
+        s3Key,
+        tailoredJobDescription
+      );
+
+      const resultId = response.resultId;
+      router.push(`/score/${resultId}`);
+    } catch (error) {
+      console.error("Scoring failed:", error);
+      alert("Failed to score resume. Please try again.");
+    } finally {
+      setIsScoring(false);
+    }
+  };
+
+  const handleSelectTailoredResume = (resume: {
+    name: string;
+    url: string;
+  }) => {
+    setSelectedTailoredResume(resume);
+    // Reset the job description when selecting a new resume
+    setTailoredJobDescription("");
+  };
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -247,7 +381,7 @@ export default function Dashboard() {
     <div
       className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-100 via-white to-purple-100 ${inriaSans.className}`}
     >
-      {isTailoring && (
+      {(isTailoring || isScoring) && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center"
           style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
@@ -471,119 +605,267 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* MODIFICATION: Original tailored view sections (lines 488-549) are replaced by the following block */}
-              {viewTailoredResume && (
-                <div
-                  className={`relative flex flex-col lg:flex-row ${
-                    isResumePreviewCollapsed
-                      ? "w-full lg:w-full"
-                      : "w-full lg:w-2/3"
-                  } flex-grow`}
-                >
+              <div
+                className={`w-full lg:w-1/3 flex flex-col ${
+                  viewTailoredResume ? "hidden" : "block"
+                }`}
+              >
+                <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+                  Tailor Resume
+                </h2>
+                <div className="flex-1 flex flex-col">
+                  <textarea
+                    id="jobDescription"
+                    className="p-4 text-black border border-gray-300 rounded-lg bg-white shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Paste job description..."
+                    value={jobDescription}
+                    onChange={(e) => setJobDescription(e.target.value)}
+                    disabled={!masterResumeUrl || isUploading}
+                  />
+                  <button
+                    onClick={handleTailorClick}
+                    className={`mt-4 w-full px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
+                      !masterResumeUrl || !jobDescription || isUploading
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                    disabled={
+                      !masterResumeUrl || !jobDescription || isUploading
+                    }
+                  >
+                    Tailor
+                  </button>
+                  {!masterResumeUrl && (
+                    <p className="text-xs text-center text-gray-500 mt-2">
+                      Upload a master resume first.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div
+                className={`w-full lg:w-1/2 flex flex-col h-[80vh] ${
+                  viewTailoredResume ? "block" : "hidden"
+                }`}
+              >
+                <input
+                  type="text"
+                  value={savePdfFilename}
+                  onChange={(e) => setSavePdfFilename(e.target.value)}
+                  placeholder="Enter filename..."
+                  className="p-3 text-black border border-gray-300 mb-2 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <div className="flex-1 overflow-hidden">
+                  <SimpleResumeViewWrapper
+                    ref={resumeViewRef}
+                    resumeEntries={tailoredResumeEntries}
+                  />
+                </div>
+                <div className="mt-2 flex flex-row justify-center items-center">
                   <button
                     onClick={() => setViewTailoredResume(false)}
-                    className="absolute top-2 right-2 z-20 bg-gray-600 text-white rounded-full w-7 h-7 flex items-center justify-center text-lg font-semibold hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                    aria-label="Close tailored view"
-                    title="Close tailored view"
+                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-red-600 rounded-md shadow hover:bg-red-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
                   >
-                    ✕
+                    Go Back <FontAwesomeIcon icon={faXmark} />
                   </button>
-
-                  {/* Column 1: Tailored Resume View */}
-                  <div className="w-full lg:w-[60%] flex flex-col h-[80vh] p-1 lg:pr-3">
-                    <input
-                      type="text"
-                      value={savePdfFilename}
-                      onChange={(e) => setSavePdfFilename(e.target.value)}
-                      placeholder="Enter filename..."
-                      className="p-3 text-black border border-gray-300 mb-2 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <ResumeView
-                      ref={resumeViewRef}
-                      resumeEntries={tailoredResumeEntries}
-                    />
-                    <div className="flex flex-row mt-2 justify-between items-center gap-2 md:gap-4">
-                      <button
-                        onClick={handleDownloadPdf}
-                        className="flex-1 px-3 py-2 text-xs sm:text-sm lg:text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-1 lg:gap-2"
-                      >
-                        Download{" "}
-                        <FontAwesomeIcon
-                          icon={faDownload}
-                          className="hidden sm:inline ml-1"
-                        />
-                      </button>
-                      <button
-                        onClick={handleSavePdf}
-                        className={`flex-1 px-3 py-2 text-xs sm:text-sm lg:text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-1 lg:gap-2 ${
-                          isSavingPdf ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        disabled={isSavingPdf}
-                      >
-                        {isSavingPdf ? (
-                          <>
-                            <FontAwesomeIcon
-                              icon={faSpinner}
-                              spin
-                              className="mr-1 lg:mr-2"
-                            />{" "}
-                            Saving...
-                          </>
-                        ) : (
-                          <>
-                            Save{" "}
-                            <FontAwesomeIcon
-                              icon={faSave}
-                              className="hidden sm:inline ml-1"
-                            />
-                          </>
-                        )}
-                      </button>
-                    </div>
-                    {savePdfStatus && (
-                      <p
-                        className={`mt-2 text-sm text-center ${
-                          savePdfStatus.includes("successfully")
-                            ? "text-green-600"
-                            : "text-red-600"
-                        }`}
-                      >
-                        {savePdfStatus}
-                      </p>
+                  <button
+                    onClick={handleDownloadPdf}
+                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                  >
+                    Download as PDF <FontAwesomeIcon icon={faDownload} />
+                  </button>
+                  <button
+                    onClick={handleSavePdf}
+                    className={`w-1/3 px-4 py-2 text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
+                      isSavingPdf ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={isSavingPdf}
+                  >
+                    {isSavingPdf ? (
+                      <>
+                        <FontAwesomeIcon icon={faSpinner} spin /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        Save <FontAwesomeIcon icon={faSave} />
+                      </>
                     )}
-                  </div>
-
-                  {/* Column 2: Job Description for Tailored View */}
-                  <div className="flex flex-col w-full lg:w-[40%] h-[80vh] mt-4 lg:mt-0 p-1 lg:pl-3">
-                    <div className="bg-white p-3 md:p-4 border border-gray-300 overflow-y-auto rounded-lg flex-grow mb-2">
-                      <pre className="whitespace-pre-wrap text-xs md:text-sm text-gray-700 leading-relaxed font-sans">
-                        {jobDescription}
-                      </pre>
-                    </div>
-                    <div className="flex flex-col justify-center items-center">
-                      <button
-                        onClick={handleScore}
-                        className="w-full sm:w-3/4 md:w-1/2 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
-                      >
-                        Score <FontAwesomeIcon icon={faChevronRight} />
-                      </button>
-                    </div>
-                  </div>
+                  </button>
                 </div>
-              )}
+
+                {savePdfStatus && (
+                  <p
+                    className={`mt-2 text-sm ${
+                      savePdfStatus.includes("successfully")
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {savePdfStatus}
+                  </p>
+                )}
+              </div>
+
+              <div
+                className={`flex flex-col w-full lg:w-1/3 ml-6 h-[80vh] ${
+                  viewTailoredResume ? "block" : "hidden"
+                }`}
+              >
+                <div
+                  className={`bg-white p-4 md:p-6 border border-gray-300 overflow-y-auto rounded-lg`}
+                >
+                  <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-700 leading-relaxed font-sans">
+                    {jobDescription}
+                  </pre>
+                </div>
+                <div className="flex-1 flex flex-col mt-2 justify-center items-center">
+                  <button
+                    onClick={handleScore}
+                    className="w-1/2 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                  >
+                    Score <FontAwesomeIcon icon={faChevronRight} />
+                  </button>
+                </div>
+              </div>
             </div>
           </>
         )}
 
         {activeTab === "tailored" && (
-          <div className="w-full max-w-4xl flex-1 flex flex-col items-center justify-center">
-            <h1 className="text-4xl font-bold mb-8 text-gray-800">
-              Tailored Resumes
-            </h1>
-            <p className="text-gray-600">
-              Tailored resumes content will go here.
-            </p>
-            {/* Placeholder for tailored resumes list or creation */}
+          <div className="w-full flex-1 flex flex-row">
+            {/* Left panel: List of tailored resumes */}
+            <div className="w-1/3 pr-4 overflow-y-auto max-h-[80vh]">
+              <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+                Tailored Resumes
+              </h2>
+              {tailoredResumes.length > 0 ? (
+                <div className="space-y-3">
+                  {tailoredResumes.map((resume) => (
+                    <div
+                      key={resume.name}
+                      onClick={() => handleSelectTailoredResume(resume)}
+                      className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                        selectedTailoredResume?.name === resume.name
+                          ? "bg-blue-100 border-2 border-blue-500 shadow-md"
+                          : "bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow"
+                      }`}
+                    >
+                      <div className="flex items-center">
+                        <FontAwesomeIcon
+                          icon={faFileWord}
+                          className="text-blue-500 mr-3"
+                        />
+                        <div>
+                          <h3 className="font-medium text-lg text-gray-800">
+                            {resume.name}.pdf
+                          </h3>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Created: {new Date().toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
+                  <p className="text-gray-500">No tailored resumes yet.</p>
+                  <p className="text-sm text-gray-400 mt-2">
+                    Create tailored resumes in the Master Resume tab.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right panel: Selected resume preview */}
+            <div className="w-2/3 pl-4">
+              {selectedTailoredResume ? (
+                <div className="flex flex-col h-full">
+                  <h2 className="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
+                    <FontAwesomeIcon
+                      icon={faFileWord}
+                      className="text-blue-500 mr-3"
+                    />
+                    {selectedTailoredResume.name}.pdf
+                  </h2>
+                  <div className="flex-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                    <iframe
+                      src={`${selectedTailoredResume.url}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                      className="w-full h-full border-0 min-h-[60vh]"
+                      title="Tailored Resume Preview"
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-col">
+                    <div className="mb-4">
+                      <label
+                        htmlFor="tailoredJobDescription"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
+                        Job Description (for scoring)
+                      </label>
+                      <textarea
+                        id="tailoredJobDescription"
+                        className="p-3 text-black border border-gray-300 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Paste job description for scoring..."
+                        value={tailoredJobDescription}
+                        onChange={(e) =>
+                          setTailoredJobDescription(e.target.value)
+                        }
+                        rows={4}
+                      />
+                      {!tailoredJobDescription.trim() && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Enter a job description to enable scoring against this
+                          resume.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex justify-end space-x-4">
+                      <a
+                        href={selectedTailoredResume.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-6 py-2 text-sm font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 flex items-center gap-2"
+                      >
+                        <FontAwesomeIcon icon={faDownload} /> Download PDF
+                      </a>
+                      <button
+                        className={`px-6 py-2 text-sm font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 flex items-center gap-2 ${
+                          !tailoredJobDescription.trim()
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                        onClick={handleScoreTailoredResume}
+                        disabled={!tailoredJobDescription.trim()}
+                      >
+                        {isScoring ? (
+                          <>
+                            <FontAwesomeIcon icon={faSpinner} spin /> Scoring...
+                          </>
+                        ) : (
+                          <>
+                            Score <FontAwesomeIcon icon={faChevronRight} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-10">
+                  <FontAwesomeIcon
+                    icon={faFileWord}
+                    className="text-gray-400 text-5xl mb-4"
+                  />
+                  <p className="text-xl font-semibold text-gray-600 mb-2">
+                    No Resume Selected
+                  </p>
+                  <p className="text-gray-500 text-center">
+                    Select a tailored resume from the list to view it here.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
