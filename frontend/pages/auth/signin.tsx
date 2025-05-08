@@ -17,31 +17,43 @@ const SignInPage: React.FC = () => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
+    console.log(
+      "Vercel @ handleSignIn: Attempting signIn with username:",
+      username
+    );
 
     try {
       const { isSignedIn, nextStep } = await signIn({ username, password });
+      console.log("Vercel @ handleSignIn: signIn() output:", {
+        isSignedIn,
+        nextStep,
+      });
 
       if (isSignedIn) {
-        // Check if there's a redirect query parameter
         const redirectPath = (router.query.redirect as string) || "/dashboard";
+        console.log(
+          "Vercel @ handleSignIn: isSignedIn is true. Redirecting to:",
+          redirectPath
+        );
         router.push(redirectPath);
       } else {
-        // Handle MFA or other next steps if applicable
-        // For now, we'll assume direct sign-in or show a generic message
-        console.log("Sign-in next step:", nextStep);
+        console.log(
+          "Vercel @ handleSignIn: isSignedIn is false. Next step:",
+          nextStep
+        );
         setError(
           "Sign-in successful, but further steps might be required. Please check console."
         );
         // Potentially redirect to a page to handle nextStep, e.g., MFA
         // router.push(`/auth/confirm-signin?username=${username}`);
       }
-    } catch (err) {
-      console.error("Error signing in:", err);
+    } catch (err: any) {
+      console.error("Vercel @ handleSignIn: Error signing in:", err);
       setError(
-        (err as Error).message ||
-          "An unexpected error occurred. Please try again."
+        err.message || "An unexpected error occurred. Please try again."
       );
     } finally {
+      console.log("Vercel @ handleSignIn: finally block.");
       setIsLoading(false);
     }
   };
