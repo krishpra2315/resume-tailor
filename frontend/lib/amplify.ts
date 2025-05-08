@@ -1,6 +1,5 @@
 import { Amplify } from "aws-amplify";
 
-// Define and export the configuration object
 export const amplifyConfig = {
   Auth: {
     Cognito: {
@@ -16,8 +15,14 @@ export const amplifyConfig = {
             "phone",
             "aws.cognito.signin.user.admin",
           ],
-          redirectSignIn: ["http://localhost:3000/callback"],
-          redirectSignOut: ["http://localhost:3000/"],
+          redirectSignIn: [
+            "http://localhost:3000/callback",
+            "https://resume-tailor-kp.vercel.app/callback",
+          ],
+          redirectSignOut: [
+            "http://localhost:3000",
+            "https://resume-tailor-kp.vercel.app",
+          ],
           responseType: "code" as const,
         },
       },
