@@ -47,11 +47,10 @@ const SignInPage: React.FC = () => {
         )
       );
 
-      // @ts-ignore // TypeScript might complain about racing different types, fine for debug
       const result = await Promise.race([signInPromise, timeoutPromise]);
 
       // If we reach here, signInPromise resolved before timeout
-      // @ts-ignore
+      // @ts-expect-error
       const { isSignedIn, nextStep } = result;
 
       console.log("Vercel @ handleSignIn: signIn() output:", {
