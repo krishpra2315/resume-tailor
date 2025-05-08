@@ -47,10 +47,11 @@ const SignInPage: React.FC = () => {
         // Potentially redirect to a page to handle nextStep, e.g., MFA
         // router.push(`/auth/confirm-signin?username=${username}`);
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Vercel @ handleSignIn: Error signing in:", err);
       setError(
-        err.message || "An unexpected error occurred. Please try again."
+        (err as Error).message ||
+          "An unexpected error occurred. Please try again."
       );
     } finally {
       console.log("Vercel @ handleSignIn: finally block.");
