@@ -90,24 +90,41 @@ const SignUpPage: React.FC = () => {
   };
 
   const handleAutoSignIn = async () => {
+    console.log("Vercel @ handleAutoSignIn: Attempting autoSignIn...");
     try {
       const signInOutput = await autoSignIn();
+      console.log(
+        "Vercel @ handleAutoSignIn: autoSignIn() output:",
+        signInOutput
+      );
       if (signInOutput.isSignedIn) {
         setSuccessMessage(
           "Sign up and sign in successful! Redirecting to dashboard..."
         );
+        console.log(
+          "Vercel @ handleAutoSignIn: isSignedIn is true. Redirecting to /dashboard."
+        );
         router.push("/dashboard");
       } else {
         setSuccessMessage("Account confirmed. Please sign in.");
+        console.log(
+          "Vercel @ handleAutoSignIn: isSignedIn is false. Next step:",
+          signInOutput.nextStep,
+          "Redirecting to /auth/signin."
+        );
         router.push("/auth/signin");
       }
     } catch (error) {
-      console.error("Auto sign-in failed after confirmation:", error);
+      console.error(
+        "Vercel @ handleAutoSignIn: Error during autoSignIn:",
+        error
+      );
       setError("Auto sign-in failed. Please try signing in manually.");
       router.push(
         "/auth/signin?message=confirmation_successful_please_sign_in"
       );
     } finally {
+      console.log("Vercel @ handleAutoSignIn: finally block.");
       setIsLoading(false);
     }
   };
