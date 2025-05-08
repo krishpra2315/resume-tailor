@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/router";
 import Head from "next/head";
 import { signIn } from "@aws-amplify/auth";
+import { Amplify } from "aws-amplify";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSignInAlt, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import Link from "next/link";
@@ -22,8 +23,37 @@ const SignInPage: React.FC = () => {
       username
     );
 
+    // Log current Amplify config right before calling signIn
     try {
-      const { isSignedIn, nextStep } = await signIn({ username, password });
+      const currentConfig = Amplify.getConfig();
+      console.log(
+        "Vercel @ handleSignIn: Current Amplify Auth Config:",
+        currentConfig.Auth
+      );
+    } catch (configError) {
+      console.error(
+        "Vercel @ handleSignIn: Error getting Amplify config:",
+        configError
+      );
+    }
+
+    try {
+      // Add a timeout for debugging
+      const signInPromise = signIn({ username, password });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("SignIn timed out after 15 seconds")),
+          15000
+        )
+      );
+
+      // @ts-ignore // TypeScript might complain about racing different types, fine for debug
+      const result = await Promise.race([signInPromise, timeoutPromise]);
+
+      // If we reach here, signInPromise resolved before timeout
+      // @ts-ignore
+      const { isSignedIn, nextStep } = result;
+
       console.log("Vercel @ handleSignIn: signIn() output:", {
         isSignedIn,
         nextStep,
@@ -48,11 +78,21 @@ const SignInPage: React.FC = () => {
         // router.push(`/auth/confirm-signin?username=${username}`);
       }
     } catch (err) {
-      console.error("Vercel @ handleSignIn: Error signing in:", err);
-      setError(
-        (err as Error).message ||
-          "An unexpected error occurred. Please try again."
+      // Catch block will now also catch the timeout error
+      console.error(
+        "Vercel @ handleSignIn: Error signing in (or timeout):",
+        err
       );
+      if ((err as Error).message === "SignIn timed out after 15 seconds") {
+        setError(
+          "Sign-in attempt timed out. Please check your network or try again."
+        );
+      } else {
+        setError(
+          (err as Error).message ||
+            "An unexpected error occurred. Please try again."
+        );
+      }
     } finally {
       console.log("Vercel @ handleSignIn: finally block.");
       setIsLoading(false);
