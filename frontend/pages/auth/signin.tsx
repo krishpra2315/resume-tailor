@@ -50,7 +50,7 @@ const SignInPage: React.FC = () => {
       const result = await Promise.race([signInPromise, timeoutPromise]);
 
       // If we reach here, signInPromise resolved before timeout
-      // @ts-expect-error
+      // @ts-expect-error could be a timeout error or a signIn error
       const { isSignedIn, nextStep } = result;
 
       console.log("Vercel @ handleSignIn: signIn() output:", {
