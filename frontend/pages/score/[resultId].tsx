@@ -3,14 +3,15 @@ import { Inria_Sans } from "next/font/google";
 import Head from "next/head";
 import { useState } from "react";
 import Link from "next/link";
+import { GetServerSidePropsContext } from "next";
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "700"],
 });
 
-export async function getServerSideProps(context: any) {
-  const { resultId } = context.params;
+export async function getServerSideProps(context: GetServerSidePropsContext) {
+  const { resultId } = context.params as { resultId: string };
   try {
     const result: GetScoreResponseBody = await scoreHTTPClient.getScore(
       resultId

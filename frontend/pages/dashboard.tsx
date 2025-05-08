@@ -27,22 +27,7 @@ import {
 import masterHTTPClient from "@/http/masterHTTPClient";
 import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
-import dynamic from "next/dynamic";
 
-// Import html2pdf directly in the dashboard component
-let html2pdfLib: any = null;
-if (typeof window !== "undefined") {
-  import("html2pdf.js").then((module) => {
-    html2pdfLib = module.default;
-  });
-}
-
-// Import the ResumeView component directly for client-side only
-const ClientSideResumeView = dynamic(() => import("@/components/ResumeView"), {
-  ssr: false,
-});
-
-// Create a simple wrapper component for ResumeView
 const SimpleResumeViewWrapper = forwardRef<
   ResumeViewHandles,
   { resumeEntries: ResumeEntry[] }
@@ -73,7 +58,6 @@ interface ResumeEntry {
 }
 
 export default function Dashboard() {
-  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [masterResumeUrl, setMasterResumeUrl] = useState<string | null>(null);
   const [resumeLoading, setResumeLoading] = useState<boolean>(true);
@@ -126,7 +110,9 @@ export default function Dashboard() {
       setResumeLoading(true);
       try {
         const currentUser: AuthUser | null = await getCurrentUser();
-        setUser(currentUser);
+        if (!currentUser) {
+          router.push("/");
+        }
 
         try {
           const resumeData = await masterHTTPClient.getMasterResume();
@@ -136,12 +122,9 @@ export default function Dashboard() {
           setResumeEntries(resumeData.entries);
           setTailoredResumes(tailoredResumes.files);
           setResumeError(null);
-        } catch (fetchError: any) {
+        } catch (fetchError) {
           console.log("Failed to fetch master resume data:", fetchError);
-          if (
-            fetchError.message?.includes("404") ||
-            fetchError.status === 404
-          ) {
+          if ((fetchError as Error).message?.includes("404")) {
             setMasterResumeUrl(null);
             setResumeEntries(null);
             setResumeError(null);
@@ -155,7 +138,7 @@ export default function Dashboard() {
         } finally {
           setResumeLoading(false);
         }
-      } catch (error) {
+      } catch {
         router.push("/");
       } finally {
         setLoading(false);
@@ -164,7 +147,6 @@ export default function Dashboard() {
     checkUserAndFetchResume();
   }, [router]);
 
-  // Auto-select the first tailored resume when switching to tailored tab or when tailored resumes are loaded
   useEffect(() => {
     if (
       activeTab === "tailored" &&
@@ -175,7 +157,6 @@ export default function Dashboard() {
     }
   }, [activeTab, tailoredResumes, selectedTailoredResume]);
 
-  // Reset selected tailored resume when switching tabs
   useEffect(() => {
     if (activeTab === "master") {
       setSelectedTailoredResume(null);
@@ -189,17 +170,6 @@ export default function Dashboard() {
       setTailoredJobDescription("");
     }
   }, [activeTab, tailoredResumes]);
-
-  useEffect(() => {
-    // This ensures html2pdf.js is only loaded in the browser
-    if (typeof window !== "undefined") {
-      // Optional: You can preload html2pdf.js here if needed
-      // const loadHtml2Pdf = async () => {
-      //   await import('html2pdf.js');
-      // };
-      // loadHtml2Pdf();
-    }
-  }, []);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();

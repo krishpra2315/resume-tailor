@@ -6,12 +6,9 @@ import React, {
   useEffect,
 } from "react";
 import { ResumeEntry } from "@/http/masterHTTPClient";
-// Remove file-saver if only used for DOCX, but html2pdf.js handles saving.
-// import { saveAs } from "file-saver"; // Keep if used elsewhere, or remove.
-import uploadHTTPClient from "@/http/uploadHTTPClient"; // Import the upload client
+import uploadHTTPClient from "@/http/uploadHTTPClient";
 import { getHtml2Pdf, isHtml2PdfLoaded } from "@/utils/html2pdfLoader";
 
-// CSS for PDF rendering mode
 const pdfStyles = `
   .pdf-render-mode {
     line-height: 1.5 !important;
@@ -208,7 +205,7 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
               cleanup();
               html2canvasFixStyle.remove();
             })
-            .catch((err: any) => {
+            .catch((err: Error) => {
               console.error("Error generating PDF for download:", err);
               alert(
                 "Sorry, there was an error generating the PDF for download."
@@ -270,7 +267,7 @@ const ResumeView = forwardRef<ResumeViewHandles, ResumeViewProps>(
             filename
           );
           return response.s3_key;
-        } catch (err: any) {
+        } catch (err) {
           console.error("Error saving PDF to server:", err);
           throw err;
         } finally {

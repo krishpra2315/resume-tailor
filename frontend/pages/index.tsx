@@ -21,7 +21,6 @@ import {
   faSpinner,
 } from "@fortawesome/free-solid-svg-icons";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
-import Image from "next/image";
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
@@ -59,7 +58,7 @@ const Home: React.FC = () => {
           } else {
             setUserName(null);
           }
-        } catch (attrError: any) {
+        } catch (attrError) {
           console.error("Error fetching user attributes:", attrError);
           setUserName(null);
         }
@@ -143,7 +142,7 @@ const Home: React.FC = () => {
             message: "Resume uploaded successfully!",
             type: "success",
           });
-        } catch (error) {
+        } catch {
           setUploadStatus({
             message: "Resume upload failed. Please try again.",
             type: "error",
@@ -262,8 +261,8 @@ const Home: React.FC = () => {
           <p className="text-xl text-gray-500 max-w-2xl ml-1">
             We use the most recent technology to tailor your resume to any job.{" "}
             <br />
-            Start by uploading your resume and job description below, we'll take
-            care of the rest.
+            Start by uploading your resume and job description below, we&apos;ll
+            take care of the rest.
             <br />
           </p>
           <div className="pt-4 text-gray-500 text-[16px] underline ml-1">
@@ -292,12 +291,12 @@ const Home: React.FC = () => {
         <p className="text-black text-[48px] font-bold">Master Resume</p>
         <p className="text-gray-500 text-[20px]">
           Make an account with us to have access to our Master Resume feature.
-          This lets you upload your "master resume" which has all of your
-          experiences, projects, and skills. Then, when you want to tailor it to
-          a job, just add the description and we'll choose only your most
-          relevant experiences to create the perfect resume for the job. This
-          resume is then automatically saved and scored so you can see how well
-          it matches the job description.
+          This lets you upload your &quot;master resume&quot; which has all of
+          your experiences, projects, and skills. Then, when you want to tailor
+          it to a job, just add the description and we&apos;ll choose only your
+          most relevant experiences to create the perfect resume for the job.
+          This resume is then automatically saved and scored so you can see how
+          well it matches the job description.
         </p>
         <button
           className="bg-blue-500 hover:bg-blue-600 transition-colors duration-300 text-white text-[20px] font-bold px-10 py-2 rounded-md mt-4"
