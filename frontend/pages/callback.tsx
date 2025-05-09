@@ -19,5 +19,11 @@ export default function Callback() {
       });
   }, [router]);
 
-  return <p>Logging in...</p>;
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-gray-200">
+      <p className="text-xl">Logging in...</p>
+      {/* You could add the themed Loading component here for better UX */}
+      {/* Example: <Loading loadingText="Finalizing login..." /> */}
+    </div>
+  );
 }

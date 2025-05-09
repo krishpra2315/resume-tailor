@@ -26,9 +26,9 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
 }
 
 const getScoreColor = (score: number): string => {
-  if (score >= 80) return "text-green-600";
-  if (score >= 50) return "text-yellow-600";
-  return "text-red-600";
+  if (score >= 80) return "text-green-400";
+  if (score >= 50) return "text-yellow-400";
+  return "text-red-400";
 };
 
 const getScoreDescription = (score: number): string => {
@@ -50,13 +50,13 @@ export default function ScorePage({
   const scoreDescription = getScoreDescription(result.score);
 
   // Tab styles
-  const activeTabClass = "bg-white text-black shadow-sm";
+  const activeTabClass = "bg-sky-600 text-white shadow-md";
   const inactiveTabClass =
-    "text-gray-500 hover:text-gray-800 hover:bg-gray-100";
+    "text-gray-400 hover:text-sky-300 hover:bg-slate-700/50";
 
   return (
     <div
-      className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-100 via-white to-purple-100 ${inriaSans.className}`}
+      className={`flex flex-col min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-gray-200 ${inriaSans.className}`}
     >
       <Head>
         <title>Your Score & Feedback - Resume Tailor</title>
@@ -67,23 +67,23 @@ export default function ScorePage({
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-100 via-white to-purple-100 top-0 z-10">
+      <nav className="shadow-lg w-full py-4 px-8 flex justify-between items-center text-white sticky top-0 z-50 bg-slate-800/30 backdrop-blur-md">
         <div className="flex flex-1 flex-row items-center gap-4">
           <Link href="/">
-            <span className="text-2xl font-bold cursor-pointer">
+            <span className="text-2xl font-bold cursor-pointer hover:text-sky-300">
               Resume Tailor
             </span>
           </Link>
-          <span className="text-2xl">&gt;</span>
-          <span className="text-2xl">Results</span>
+          <span className="text-2xl text-gray-500">&gt;</span>
+          <span className="text-2xl text-gray-200">Results</span>
         </div>
       </nav>
 
       <div className="flex flex-1 flex-col lg:flex-row p-4 md:p-8 gap-6 lg:gap-8">
-        <div className="flex-1 lg:w-1/2 flex flex-col bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-          <div className="flex p-1 bg-gray-100 border-b border-gray-200">
+        <div className="flex-1 lg:w-1/2 flex flex-col bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl border border-slate-700 overflow-hidden">
+          <div className="flex p-1 bg-slate-700/30 border-b border-slate-600">
             <button
-              className={`flex-1 py-2 px-4 text-center font-semibold rounded-md transition-all duration-200 ${
+              className={`flex-1 py-2.5 px-4 text-center font-semibold rounded-md transition-all duration-200 ${
                 activeTab === "resume" ? activeTabClass : inactiveTabClass
               }`}
               onClick={() => setActiveTab("resume")}
@@ -91,7 +91,7 @@ export default function ScorePage({
               Resume
             </button>
             <button
-              className={`flex-1 py-2 px-4 text-center font-semibold rounded-md transition-all duration-200 ${
+              className={`flex-1 py-2.5 px-4 text-center font-semibold rounded-md transition-all duration-200 ${
                 activeTab === "jobDescription"
                   ? activeTabClass
                   : inactiveTabClass
@@ -111,11 +111,11 @@ export default function ScorePage({
               />
             )}
             {activeTab === "jobDescription" && (
-              <div className="w-full h-[80vh] bg-white p-4 md:p-6 overflow-y-auto rounded-lg">
-                <h3 className="text-xl font-semibold mb-4 text-gray-800 border-b pb-2">
+              <div className="w-full h-[80vh] bg-slate-800 p-4 md:p-6 overflow-y-auto rounded-lg">
+                <h3 className="text-xl font-semibold mb-4 text-white border-b border-slate-600 pb-2">
                   Job Description
                 </h3>
-                <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-700 leading-relaxed font-sans">
+                <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-sans">
                   {result.jobDescription}
                 </pre>
               </div>
@@ -124,8 +124,8 @@ export default function ScorePage({
         </div>
 
         <div className="flex-1 lg:w-1/2 flex flex-col gap-6">
-          <div className="w-full bg-white p-6 rounded-xl shadow-lg text-center border border-gray-200 flex flex-col items-center">
-            <h2 className="text-2xl font-semibold text-gray-700 mb-1">
+          <div className="w-full bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl text-center border border-slate-700 flex flex-col items-center">
+            <h2 className="text-2xl font-semibold text-white mb-1">
               Your Score
             </h2>
             <p className={`text-7xl font-bold ${scoreColor}`}>{result.score}</p>
@@ -135,7 +135,7 @@ export default function ScorePage({
           </div>
 
           <div className="flex flex-col gap-4 flex-1">
-            <h2 className="text-2xl font-semibold text-gray-700 px-1">
+            <h2 className="text-2xl font-semibold text-white px-1">
               Feedback & Suggestions
             </h2>
             {result.feedback
@@ -143,9 +143,9 @@ export default function ScorePage({
               .map((item, index) => (
                 <div
                   key={index}
-                  className="bg-white p-5 rounded-lg shadow-md border border-gray-200"
+                  className="bg-slate-700/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
                 >
-                  <p className="text-gray-700 leading-relaxed">{item}</p>
+                  <p className="text-gray-300 leading-relaxed">{item}</p>
                 </div>
               ))}
           </div>
