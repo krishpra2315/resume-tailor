@@ -11,3 +11,5 @@ export const amplifyConfig = {
 
 // Configure Amplify using the exported object
 Amplify.configure(amplifyConfig);
+
+console.log("Amplify configured."); // Simplified log message
