@@ -84,12 +84,14 @@ const MinimalSignInPage: React.FC = () => {
           output.isSignedIn
         }. Next step: ${output.nextStep?.signInStep || "N/A"}`
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error(
         "MinimalSignInPage @ handleMinimalSignIn: Error during signIn:",
         error
       );
-      setMessage(`Error during sign-in: ${error.message}. Check console.`);
+      setMessage(
+        `Error during sign-in: ${(error as Error).message}. Check console.`
+      );
     } finally {
       console.log("MinimalSignInPage @ handleMinimalSignIn: finally block.");
       setIsLoading(false);
@@ -119,7 +121,9 @@ const MinimalSignInPage: React.FC = () => {
           padding: "10px",
         }}
       >
-        <p>Console logs should appear here and in your browser's dev tools.</p>
+        <p>
+          Console logs should appear here and in your browser&apos;s dev tools.
+        </p>
       </div>
     </div>
   );
