@@ -18,6 +18,13 @@ import {
   faUpload,
   faSignOutAlt,
   faSpinner,
+  faFileUpload,
+  faClipboardList,
+  faMagic,
+  faFileAlt,
+  faSearchPlus,
+  faChevronRight,
+  faChevronDown,
 } from "@fortawesome/free-solid-svg-icons";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Image from "next/image";
@@ -30,6 +37,7 @@ const inriaSans = Inria_Sans({
 const Home: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const router = useRouter();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState<string>("");
@@ -43,6 +51,41 @@ const Home: React.FC = () => {
     type: "success" | "error";
   } | null>(null);
   const [isScoring, setIsScoring] = useState<boolean>(false);
+  const [isHowItWorksExpanded, setIsHowItWorksExpanded] =
+    useState<boolean>(false);
+
+  const howItWorksSteps = [
+    {
+      title: "Upload Your Resume",
+      icon: faFileUpload,
+      description:
+        "When you upload your master resume, we analyze it and extract all of your experiences, projects, and skills to make it easier to analyze.",
+    },
+    {
+      title: "Provide the Job Description",
+      icon: faClipboardList,
+      description:
+        "When you want to apply for a specific job, simply paste the job description into the provided text area.",
+    },
+    {
+      title: "AI-Powered Tailoring",
+      icon: faMagic,
+      description:
+        "Our system analyzes the job description to understand the key requirements, skills, and keywords the employer is looking for. Then, it intelligently selects the most relevant items from your master resume that best match the target job.",
+    },
+    {
+      title: "Optimized Resume Generation",
+      icon: faFileAlt,
+      description:
+        "A new, tailored resume is generated. This resume is optimized to highlight your qualifications for that specific role, increasing your chances of getting noticed.",
+    },
+    {
+      title: "Review and Download",
+      icon: faSearchPlus,
+      description:
+        "You can review the tailored resume, make any minor adjustments if needed, and then download it. You can also score the new resume to see how well it matches the job description.",
+    },
+  ];
 
   useEffect(() => {
     const checkUser = async () => {
@@ -196,6 +239,10 @@ const Home: React.FC = () => {
     setIsScoring(false);
   };
 
+  const toggleHowItWorks = () => {
+    setIsHowItWorksExpanded(!isHowItWorksExpanded);
+  };
+
   return (
     <div
       className={`flex flex-col min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-gray-100 ${inriaSans.className}`}
@@ -229,7 +276,7 @@ const Home: React.FC = () => {
               </span>
               <button
                 onClick={handleLogout}
-                className="px-6 py-3 text-md text-white bg-sky-500 hover:bg-sky-600 rounded-md shadow-md transition duration-200 ease-in-out flex items-center gap-2 border border-sky-400"
+                className="px-6 py-3 text-md text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-md transition duration-200 ease-in-out flex items-center gap-2"
               >
                 Logout <FontAwesomeIcon icon={faSignOutAlt} />
               </button>
@@ -244,7 +291,7 @@ const Home: React.FC = () => {
               </button>
               <button
                 onClick={handleSignUp}
-                className="px-5 py-2.5 text-md font-semibold text-slate-900 bg-sky-400 hover:bg-sky-500 rounded-md shadow-md transition duration-200 ease-in-out flex items-center gap-2 border border-sky-300"
+                className="px-5 py-2.5 text-md font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md shadow-md transition duration-200 ease-in-out flex items-center gap-2"
               >
                 Sign Up <FontAwesomeIcon icon={faUserPlus} />
               </button>
@@ -266,12 +313,21 @@ const Home: React.FC = () => {
               we&apos;ll take care of the rest.
               <br />
             </p>
-            <div className="pt-4 text-sky-400 hover:text-sky-300 text-[16px] underline ml-1">
-              <a href="#resume-upload-area">
-                Score how well your resume matches a job description.
-              </a>
-              <br />
-              <a
+            <div className="pt-4 ml-1 flex flex-col sm:flex-row gap-4 items-start">
+              <button
+                onClick={() => {
+                  document
+                    .getElementById("resume-upload-area")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+                className="px-6 py-3 text-md font-semibold text-white bg-transparent border border-white hover:bg-slate-600 rounded-md shadow-md transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75"
+              >
+                Score your Resume{" "}
+                <span className="ml-2">
+                  <FontAwesomeIcon icon={faChevronDown} />
+                </span>
+              </button>
+              <button
                 onClick={() => {
                   if (user) {
                     router.push("/dashboard");
@@ -279,11 +335,13 @@ const Home: React.FC = () => {
                     router.push("/auth/signup");
                   }
                 }}
-                className="cursor-pointer"
+                className="px-6 py-3 text-md font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md shadow-sm transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-opacity-75"
               >
-                Make an account and upload a master resume for our best
-                tailoring features.
-              </a>
+                Get Started with an Account{" "}
+                <span className="ml-2">
+                  <FontAwesomeIcon icon={faChevronRight} />
+                </span>
+              </button>
             </div>
           </div>
         </div>
@@ -313,7 +371,7 @@ const Home: React.FC = () => {
             can see how well it matches the job description.
           </p>
           <button
-            className="bg-sky-500 hover:bg-sky-600 transition-colors duration-300 text-white text-[20px] font-bold px-10 py-3 rounded-lg mt-6 shadow-lg"
+            className="bg-purple-700 hover:bg-purple-800 transition-colors duration-300 text-white text-[20px] font-bold px-10 py-3 rounded-lg mt-6 shadow-lg"
             onClick={() => {
               if (user) {
                 router.push("/dashboard");
@@ -324,6 +382,65 @@ const Home: React.FC = () => {
           >
             {user ? "Go to Dashboard" : "Get Started"}
           </button>
+        </div>
+
+        <div className="flex flex-col items-center justify-center mt-4">
+          <button
+            onClick={toggleHowItWorks}
+            className="text-purple-400 hover:text-purple-300 underline text-lg"
+          >
+            How it works {isHowItWorksExpanded ? "▲" : "▼"}
+          </button>
+          <div
+            className={`transition-all duration-700 ease-in-out overflow-hidden w-full max-w-5xl ${
+              isHowItWorksExpanded
+                ? "max-h-[1800px] opacity-100 mt-4"
+                : "max-h-0 opacity-0 mt-0 p-0"
+            } `}
+          >
+            {isHowItWorksExpanded && (
+              <>
+                <div className="space-y-6">
+                  {howItWorksSteps.map((step, index) => (
+                    <div
+                      key={index}
+                      className={`flex flex-col p-5 duration-300 ${
+                        index % 2 === 0
+                          ? "items-start text-left"
+                          : "items-end text-right"
+                      }`}
+                    >
+                      <div
+                        className={`flex items-center ${
+                          index % 2 === 0 ? "flex-row" : "flex-row-reverse"
+                        } mb-2`}
+                      >
+                        <FontAwesomeIcon
+                          icon={step.icon}
+                          className="text-purple-400 text-3xl"
+                        />
+                        <h3
+                          className={`text-2xl font-semibold text-white ${
+                            index % 2 === 0 ? "ml-3" : "mr-3"
+                          }`}
+                        >
+                          {`${step.title}`}
+                        </h3>
+                      </div>
+                      <p className="text-gray-300 leading-relaxed text-lg max-w-xl">
+                        {step.description}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-8 text-center text-gray-400 italic text-sm sm:text-base">
+                  This process ensures that you always present the most
+                  compelling version of your experience for every application,
+                  without the manual effort of rewriting your resume each time.
+                </p>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -344,12 +461,15 @@ const Home: React.FC = () => {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`p-10 border-dashed border-2 rounded-lg shadow w-full md:w-1/2 h-100 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 ease-in-out ${
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-10 border-dashed border-2 hover:border-purple-400 rounded-lg shadow w-full md:w-1/2 h-100 flex flex-col justify-center items-center cursor-pointer transition-colors duration-200 ease-in-out ${
               isUploading
                 ? "bg-slate-700 border-gray-500"
                 : isDraggingOver
-                ? "border-sky-500 bg-sky-700/30"
-                : "border-gray-600 bg-slate-800 hover:border-gray-500"
+                ? "border-purple-500 bg-purple-700/30"
+                : resumeFile
+                ? "border-purple-500 bg-slate-800"
+                : "border-gray-600 bg-slate-800"
             }`}
           >
             {isUploading ? (
@@ -364,7 +484,11 @@ const Home: React.FC = () => {
                   icon={faUpload}
                   className="text-gray-500 text-3xl mb-3"
                 />
-                <p className="text-gray-300 text-lg font-semibold mb-2">
+                <p
+                  className={`text-gray-300 text-lg font-semibold mb-2 ${
+                    resumeFile ? "text-purple-500" : ""
+                  }`}
+                >
                   {resumeFile
                     ? `File: ${resumeFile.name}`
                     : "Drag & Drop Resume Here"}
@@ -383,18 +507,9 @@ const Home: React.FC = () => {
                   }}
                   onClick={(e) => ((e.target as HTMLInputElement).value = "")}
                   id="resume-file-input"
+                  ref={fileInputRef}
                   disabled={isUploading}
                 />
-                <label
-                  htmlFor="resume-file-input"
-                  className={`mt-2 text-sky-400 hover:text-sky-300 underline text-sm ${
-                    isUploading
-                      ? "cursor-not-allowed opacity-50"
-                      : "cursor-pointer"
-                  }`}
-                >
-                  {resumeFile ? "Change file" : "Select file"}
-                </label>
               </>
             )}
           </div>
@@ -404,7 +519,7 @@ const Home: React.FC = () => {
               placeholder="Paste the Job Description here..."
               value={jobDescription}
               onChange={handleJobDescriptionChange}
-              className="p-4 text-gray-200 border border-gray-600 rounded-lg bg-slate-800 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-sky-500 placeholder-gray-500"
+              className="p-4 text-white border border-gray-600 rounded-lg bg-slate-800 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
             />
           </div>
         </div>
@@ -412,7 +527,7 @@ const Home: React.FC = () => {
           onClick={handleScoreResume}
           className={`mt-8 transition-colors duration-300 text-lg font-semibold px-8 py-2 rounded-md shadow flex items-center justify-center gap-2 ${
             resumeFile && jobDescription && !isUploading && !isScoring
-              ? "bg-sky-500 hover:bg-sky-600 text-white"
+              ? "bg-purple-700 hover:bg-purple-800 text-white"
               : "bg-slate-600 cursor-not-allowed text-gray-400"
           }`}
           disabled={!(resumeFile && jobDescription) || isUploading || isScoring}

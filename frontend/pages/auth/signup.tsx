@@ -141,7 +141,7 @@ const SignUpPage: React.FC = () => {
             type="text"
             autoComplete="name"
             required
-            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-t-md focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
             placeholder="Full Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -158,7 +158,7 @@ const SignUpPage: React.FC = () => {
             type="email"
             autoComplete="email"
             required
-            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
             placeholder="Email address"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -175,7 +175,7 @@ const SignUpPage: React.FC = () => {
             type="password"
             autoComplete="new-password"
             required
-            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-b-md focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+            className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -208,7 +208,7 @@ const SignUpPage: React.FC = () => {
       <div>
         <button
           type="submit"
-          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-800 disabled:opacity-50"
+          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 focus:ring-offset-slate-800 disabled:opacity-50"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -235,8 +235,8 @@ const SignUpPage: React.FC = () => {
     <form className="mt-8 space-y-6" onSubmit={handleConfirmSignUp}>
       <p className="text-center text-gray-300">
         A confirmation code was sent to{" "}
-        <span className="font-medium text-sky-300">{email}</span>. Please enter
-        it below.
+        <span className="font-medium text-purple-300">{email}</span>. Please
+        enter it below.
       </p>
       <div className="rounded-md shadow-sm">
         <label htmlFor="confirmation-code" className="sr-only">
@@ -247,7 +247,7 @@ const SignUpPage: React.FC = () => {
           name="confirmationCode"
           type="text"
           required
-          className="appearance-none rounded-md relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
+          className="appearance-none rounded-md relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 focus:outline-none focus:ring-purple-500 focus:border-purple-500 sm:text-sm"
           placeholder="Confirmation Code"
           value={confirmationCode}
           onChange={(e) => setConfirmationCode(e.target.value)}
@@ -279,7 +279,7 @@ const SignUpPage: React.FC = () => {
       <div>
         <button
           type="submit"
-          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-800 disabled:opacity-50"
+          className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 focus:ring-offset-slate-800 disabled:opacity-50"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -343,7 +343,7 @@ const SignUpPage: React.FC = () => {
                 // For DETAILS step, Link will navigate to signin normally
               }}
             >
-              <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+              <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
                 {currentStep === "DETAILS" ? "Sign In" : "Start Over"}
               </span>
             </Link>
@@ -354,7 +354,7 @@ const SignUpPage: React.FC = () => {
             <p className="text-gray-400">
               Finished confirming?{" "}
               <Link href="/auth/signin">
-                <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+                <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
                   Go to Sign In
                 </span>
               </Link>
@@ -363,7 +363,7 @@ const SignUpPage: React.FC = () => {
         )}
         <div className="text-sm text-center mt-2">
           <Link href="/">
-            <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+            <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
               Back to Home
             </span>
           </Link>

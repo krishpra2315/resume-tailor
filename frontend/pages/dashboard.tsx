@@ -27,6 +27,7 @@ import {
 import masterHTTPClient from "@/http/masterHTTPClient";
 import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
+import Loading from "@/components/Loading";
 
 const SimpleResumeViewWrapper = forwardRef<
   ResumeViewHandles,
@@ -344,7 +345,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <Loading loadingText="Loading Dashboard..." />;
   }
 
   return (

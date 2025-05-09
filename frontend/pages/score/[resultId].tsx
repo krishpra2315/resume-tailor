@@ -50,9 +50,9 @@ export default function ScorePage({
   const scoreDescription = getScoreDescription(result.score);
 
   // Tab styles
-  const activeTabClass = "bg-sky-600 text-white shadow-md";
+  const activeTabClass = "bg-purple-600 text-white shadow-md";
   const inactiveTabClass =
-    "text-gray-400 hover:text-sky-300 hover:bg-slate-700/50";
+    "text-gray-400 hover:text-purple-300 hover:bg-slate-700/50";
 
   return (
     <div
@@ -70,7 +70,7 @@ export default function ScorePage({
       <nav className="shadow-lg w-full py-4 px-8 flex justify-between items-center text-white sticky top-0 z-50 bg-slate-800/30 backdrop-blur-md">
         <div className="flex flex-1 flex-row items-center gap-4">
           <Link href="/">
-            <span className="text-2xl font-bold cursor-pointer hover:text-sky-300">
+            <span className="text-2xl font-bold cursor-pointer hover:text-purple-300">
               Resume Tailor
             </span>
           </Link>
@@ -79,8 +79,8 @@ export default function ScorePage({
         </div>
       </nav>
 
-      <div className="flex flex-1 flex-col lg:flex-row p-4 md:p-8 gap-6 lg:gap-8">
-        <div className="flex-1 lg:w-1/2 flex flex-col bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl border border-slate-700 overflow-hidden">
+      <div className="flex flex-1 flex-col lg:flex-row pt-2 px-2 gap-6 lg:gap-8">
+        <div className="flex-1 lg:w-1/2 h-[90vh] flex flex-col bg-slate-800/50 backdrop-blur-md rounded-xl shadow-xl border border-slate-700 overflow-hidden">
           <div className="flex p-1 bg-slate-700/30 border-b border-slate-600">
             <button
               className={`flex-1 py-2.5 px-4 text-center font-semibold rounded-md transition-all duration-200 ${
@@ -102,16 +102,16 @@ export default function ScorePage({
             </button>
           </div>
 
-          <div className="flex-1 p-1">
+          <div className="flex-1">
             {activeTab === "resume" && (
               <iframe
                 src={`${result.fileContent}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                className="w-full h-[80vh] border-0 rounded-lg"
+                className="w-full h-[84vh] border-0 rounded-lg"
                 title="Resume Preview"
               />
             )}
             {activeTab === "jobDescription" && (
-              <div className="w-full h-[80vh] bg-slate-800 p-4 md:p-6 overflow-y-auto rounded-lg">
+              <div className="w-full bg-slate-800 p-4 md:p-6 overflow-y-scroll rounded-lg">
                 <h3 className="text-xl font-semibold mb-4 text-white border-b border-slate-600 pb-2">
                   Job Description
                 </h3>
@@ -123,7 +123,7 @@ export default function ScorePage({
           </div>
         </div>
 
-        <div className="flex-1 lg:w-1/2 flex flex-col gap-6">
+        <div className="flex-1 lg:w-1/2 flex flex-col h-[90vh] gap-3">
           <div className="w-full bg-slate-800/50 backdrop-blur-md p-6 rounded-xl shadow-xl text-center border border-slate-700 flex flex-col items-center">
             <h2 className="text-2xl font-semibold text-white mb-1">
               Your Score
@@ -134,16 +134,16 @@ export default function ScorePage({
             </p>
           </div>
 
-          <div className="flex flex-col gap-4 flex-1">
-            <h2 className="text-2xl font-semibold text-white px-1">
-              Feedback & Suggestions
-            </h2>
+          <h2 className="text-2xl font-semibold text-white px-1">
+            Feedback & Suggestions
+          </h2>
+          <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
             {result.feedback
               .filter((item) => typeof item === "string" && item.trim() !== "")
               .map((item, index) => (
                 <div
                   key={index}
-                  className="bg-slate-700/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
+                  className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
                 >
                   <p className="text-gray-300 leading-relaxed">{item}</p>
                 </div>

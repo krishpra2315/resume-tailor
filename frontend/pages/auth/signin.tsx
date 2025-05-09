@@ -121,7 +121,7 @@ const SignInPage: React.FC = () => {
                 type="text"
                 autoComplete="username"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-t-md focus:outline-none focus:ring-sky-500 focus:border-sky-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-t-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Email address or Username"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -138,7 +138,7 @@ const SignInPage: React.FC = () => {
                 type="password"
                 autoComplete="current-password"
                 required
-                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-b-md focus:outline-none focus:ring-sky-500 focus:border-sky-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded-none relative block w-full px-3 py-3 border border-gray-600 bg-slate-800 placeholder-gray-500 text-gray-200 rounded-b-md focus:outline-none focus:ring-purple-500 focus:border-purple-500 focus:z-10 sm:text-sm"
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -160,7 +160,7 @@ const SignInPage: React.FC = () => {
             {/* TODO: Implement forgot password functionality if desired, then re-enable this link.
             <div className="text-sm">
               <Link href="/auth/forgot-password">
-                <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+                <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
                   Forgot your password?
                 </span>
               </Link>
@@ -171,7 +171,7 @@ const SignInPage: React.FC = () => {
           <div>
             <button
               type="submit"
-              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 focus:ring-offset-slate-800 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 focus:ring-offset-slate-800 disabled:opacity-50"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -199,7 +199,7 @@ const SignInPage: React.FC = () => {
           <p className="text-gray-400">
             Don&apos;t have an account?{" "}
             <Link href="/auth/signup">
-              <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+              <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
                 Sign Up
               </span>
             </Link>
@@ -207,7 +207,7 @@ const SignInPage: React.FC = () => {
         </div>
         <div className="text-sm text-center mt-2">
           <Link href="/">
-            <span className="font-medium text-sky-400 hover:text-sky-300 cursor-pointer">
+            <span className="font-medium text-purple-400 hover:text-purple-300 cursor-pointer">
               Back to Home
             </span>
           </Link>
