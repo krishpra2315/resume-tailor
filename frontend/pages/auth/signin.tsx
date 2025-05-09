@@ -38,7 +38,6 @@ const SignInPage: React.FC = () => {
     }
 
     try {
-      // Add a timeout for debugging
       const signInPromise = signIn({ username, password });
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
