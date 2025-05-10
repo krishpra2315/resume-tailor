@@ -28,26 +28,41 @@ def lambda_handler(event, context):
 
         # Step 2: Prompt Claude
         prompt = f"""
-You are a resume optimization assistant. Given a structured resume (as a list of JSON objects) and a job description, select the most relevant items (experience, education, projects, skills, certifications) that best match the job.
+You are a Resume Optimization Assistant. Your mission is to construct a tailored, dense, 1-page resume that optimally positions the candidate for a specific job. You will be given a structured resume (as a list of JSON objects) and a job description.
 
-Your goal is to create a tailored 1-page resume that highlights the best possible fit with the job, but also fills the page with high-quality content.
+**Inputs:**
+1.  Job Description:
+    --- JOB DESCRIPTION START ---
+    {job_description}
+    --- JOB DESCRIPTION END ---
 
-When it comes to skills, include each of the sections (e.g., languages, technologies, tools) but only include specific skills from those sections that are relevant to the job. Do not include unrelated skills.
+2.  User's Full Resume Entries (JSON list):
+    --- USER RESUME ENTRIES (JSON LIST) ---
+    {json.dumps(resume_entries)}
+    --- USER RESUME ENTRIES (JSON LIST) END ---
 
-**IMPORTANT**:
-- Prioritize relevance to the job description above all.
-- However, if there are not enough highly relevant items to fill a page, include the next most related items to ensure the resume is a full page.
-- Always include the `userInfo` and `skills` objects.
-- Return a total of approximately 5-6 items **other than userInfo and skills**. Each item should average 4-5 lines of text.
-- If you're uncertain whether to include an item, err on the side of including it to maintain resume fullness.
-- Format your output as a list of JSON objects **with the same structure as the input list**, and do **not** include any explanatory text or comments.
+**Core Task & Selection Logic:**
 
---- JOB DESCRIPTION START ---
-{job_description}
---- JOB DESCRIPTION END ---
+1.  **Mandatory Sections:**
+    * You **must** always include the `userInfo` object.
+    * You **must** always include the `education` object(s). If multiple education entries exist, select the most relevant or recent ones, ensuring at least one is present.
+    * You **must** always include the `skills` object. Within the `skills` object, preserve all original skill categories (e.g., "languages," "technologies," "tools"). However, for each category, only populate it with *specific skills* that are demonstrably relevant to the `job_description`. Omit non-relevant skills from these lists.
 
---- USER RESUME ENTRIES (JSON LIST) ---
-{json.dumps(resume_entries)}
+2.  **Selection of Additional Content (Experience, Projects, Certifications, etc.):**
+    * Beyond the mandatory sections (`userInfo`, `education`, `skills`), your goal is to select approximately **4 to 6 additional items** from the user's other resume entries (such as `experience`, `projects`, `certifications`).
+    * **Relevance is Paramount:** Prioritize items that show the strongest and most direct alignment with the requirements, keywords, and responsibilities listed in the `job_description`.
+    * **Ensuring Page Fullness & Content Density:**
+        * If you cannot find 4-6 items of *high* relevance, include the *next most relevant* items to reach the target of 4-6 additional items.
+        * If there's uncertainty about including a moderately relevant item, err on the side of inclusion if it helps achieve a fuller page and the item isn't entirely unrelated to the professional profile suggested by the job.
+        * Aim for each selected item (e.g., a specific job in `experience`, a particular `project`) to contain substantial descriptive text, ideally averaging 3-5 lines. However, high relevance can justify including a briefer item.
+
+3.  **Overall Goal:** The final output should represent a compelling, single-page resume, rich with high-quality, relevant content that effectively showcases the candidate's fit for the job.
+
+**Output Requirements:**
+
+* Your response **must** be solely a list of JSON objects.
+* This list must follow the **exact same structure and format** as the input `resume_entries`. For example, if an experience item in the input is `{{ "type": "experience", "title": "Engineer", ... }}`, its selected counterpart in the output must also be `{{ "type": "experience", "title": "Engineer", ... }}`.
+* Do **not** include any introductory text, concluding remarks, comments, or any explanations outside of the JSON structure itself.
 """
 
 

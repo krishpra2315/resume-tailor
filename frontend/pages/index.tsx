@@ -357,7 +357,7 @@ const Home: React.FC = () => {
                 }}
                 className="px-6 py-3 text-md font-semibold text-white bg-purple-700 hover:bg-purple-800 rounded-md shadow-sm transition duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-300 focus:ring-opacity-75"
               >
-                Get Started with an Account{" "}
+                {user ? "Go to your Dashboard" : "Get Started with an Account"}
                 <span className="ml-2">
                   <FontAwesomeIcon icon={faChevronRight} />
                 </span>

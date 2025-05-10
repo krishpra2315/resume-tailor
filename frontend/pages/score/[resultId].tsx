@@ -100,9 +100,9 @@ export default function ScorePage({
           <div className="flex items-center">
             <button
               onClick={() => router.push("/dashboard")}
-              className="px-6 py-4 font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-md transition duration-200 ease-in-out"
+              className="px-6 py-3 font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-md transition duration-200 ease-in-out"
             >
-              Go to Dashboard
+              Dashboard
             </button>
           </div>
         )}
