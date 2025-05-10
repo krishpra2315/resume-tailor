@@ -1,9 +1,12 @@
 import scoreHTTPClient, { GetScoreResponseBody } from "@/http/scoreHTTPClient";
 import { Inria_Sans } from "next/font/google";
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { GetServerSidePropsContext } from "next";
+import { getCurrentUser } from "@aws-amplify/auth";
+import type { AuthUser } from "@aws-amplify/auth";
+import { useRouter } from "next/router";
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
@@ -46,6 +49,9 @@ export default function ScorePage({
   const [activeTab, setActiveTab] = useState<"resume" | "jobDescription">(
     "resume"
   );
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const router = useRouter();
+
   const scoreColor = getScoreColor(result.score);
   const scoreDescription = getScoreDescription(result.score);
 
@@ -53,6 +59,19 @@ export default function ScorePage({
   const activeTabClass = "bg-purple-600 text-white shadow-md";
   const inactiveTabClass =
     "text-gray-400 hover:text-purple-300 hover:bg-slate-700/50";
+
+  useEffect(() => {
+    const checkUser = async () => {
+      try {
+        const currentUser = await getCurrentUser();
+        setUser(currentUser);
+      } catch (error) {
+        setUser(null);
+        console.log("No current user on score page:", error);
+      }
+    };
+    checkUser();
+  }, []);
 
   return (
     <div
@@ -70,13 +89,23 @@ export default function ScorePage({
       <nav className="shadow-lg w-full py-4 px-8 flex justify-between items-center text-white sticky top-0 z-50 bg-slate-800/30 backdrop-blur-md">
         <div className="flex flex-1 flex-row items-center gap-4">
           <Link href="/">
-            <span className="text-2xl font-bold cursor-pointer hover:text-purple-300">
+            <span className="text-xl font-bold cursor-pointer hover:text-purple-300">
               Resume Tailor
             </span>
           </Link>
-          <span className="text-2xl text-gray-500">&gt;</span>
-          <span className="text-2xl text-gray-200">Results</span>
+          <span className="text-xl text-gray-500">&gt;</span>
+          <span className="text-xl text-gray-200">Results</span>
         </div>
+        {user && (
+          <div className="flex items-center">
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="px-6 py-4 font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-md shadow-md transition duration-200 ease-in-out"
+            >
+              Go to Dashboard
+            </button>
+          </div>
+        )}
       </nav>
 
       <div className="flex flex-1 flex-col lg:flex-row pt-2 px-2 gap-6 lg:gap-8">

@@ -28,6 +28,13 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Image from "next/image";
+import MultiStepProcessingLoader from "@/components/MultiStepProcessingLoader";
+
+interface ProcessingStep {
+  id: number | string;
+  text: string;
+  duration: number;
+}
 
 const inriaSans = Inria_Sans({
   subsets: ["latin"],
@@ -53,6 +60,15 @@ const Home: React.FC = () => {
   const [isScoring, setIsScoring] = useState<boolean>(false);
   const [isHowItWorksExpanded, setIsHowItWorksExpanded] =
     useState<boolean>(false);
+
+  const scoringProcessingSteps: ProcessingStep[] = [
+    {
+      id: "score-idx-1",
+      text: "Analyzing Resume and Job Description",
+      duration: 3000,
+    },
+    { id: "score-idx-2", text: "Calculating Score...", duration: Infinity },
+  ];
 
   const howItWorksSteps = [
     {
@@ -229,37 +245,41 @@ const Home: React.FC = () => {
 
   const handleScoreResume = async () => {
     setIsScoring(true);
-    const response = await scoreHTTPClient.scoreResume(
-      currentResumeS3Key as string,
-      jobDescription
-    );
-
-    const resultId = response.resultId;
-    router.push(`/score/${resultId}`);
-    setIsScoring(false);
+    try {
+      const response = await scoreHTTPClient.scoreResume(
+        currentResumeS3Key as string,
+        jobDescription
+      );
+      const resultId = response.resultId;
+      router.push(`/score/${resultId}`);
+    } catch (error) {
+      console.error("Error scoring resume:", error);
+      setUploadStatus({
+        message: "Failed to score resume. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setIsScoring(false);
+    }
   };
 
   const toggleHowItWorks = () => {
     setIsHowItWorksExpanded(!isHowItWorksExpanded);
   };
 
+  if (isScoring) {
+    return (
+      <MultiStepProcessingLoader
+        title="Scoring Your Resume..."
+        steps={scoringProcessingSteps}
+      />
+    );
+  }
+
   return (
     <div
       className={`flex flex-col min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-gray-100 ${inriaSans.className}`}
     >
-      {isScoring && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
-        >
-          <FontAwesomeIcon
-            icon={faSpinner}
-            spin
-            className="text-white text-[100px]"
-          />
-        </div>
-      )}
-
       <Head>
         <title>Resume Tailor</title>
         <meta name="description" content="Tailor your resume to perfection" />
@@ -495,6 +515,8 @@ const Home: React.FC = () => {
                 </p>
                 <p className="text-gray-500 text-sm">
                   or click to select (PDF, DOCX, TXT)
+                  <br />
+                  Must be one page.
                 </p>
                 <input
                   type="file"

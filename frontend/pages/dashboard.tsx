@@ -28,6 +28,18 @@ import masterHTTPClient from "@/http/masterHTTPClient";
 import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Loading from "@/components/Loading";
+import MultiStepProcessingLoader from "@/components/MultiStepProcessingLoader";
+
+// Define the structure for a single processing step (can be co-located or imported if used elsewhere)
+interface ProcessingStep {
+  id: number | string;
+  text: string;
+  duration: number;
+}
+
+// Tab styles
+const activeTabClass = "bg-slate-700 text-white shadow-md";
+const inactiveTabClass = "text-gray-400 hover:bg-slate-700/50";
 
 const SimpleResumeViewWrapper = forwardRef<
   ResumeViewHandles,
@@ -101,9 +113,42 @@ export default function Dashboard() {
     url: string;
   } | null>(null);
 
+  const [isTailoredListCollapsed, setIsTailoredListCollapsed] =
+    useState<boolean>(false);
+
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const resumeViewRef = useRef<ResumeViewHandles>(null);
+
+  // Define steps for Master Resume Processing
+  const masterResumeProcessingSteps: ProcessingStep[] = [
+    { id: 1, text: "Uploading Resume", duration: 2000 },
+    { id: 2, text: "Reading Text", duration: 4000 },
+    { id: 3, text: "Extracting Items", duration: 6000 },
+    { id: 4, text: "Adding to Database", duration: 1000 },
+    { id: 5, text: "Finalizing...", duration: Infinity },
+  ];
+
+  // Define steps for Tailoring (as an example, you'll adjust these)
+  const tailoringProcessingSteps: ProcessingStep[] = [
+    { id: "tailor-2", text: "Analyzing Job Description", duration: 2000 },
+    { id: "tailor-3", text: "Generating Tailored Content", duration: 4000 },
+    {
+      id: "tailor-4",
+      text: "Finalizing Tailored Resume...",
+      duration: Infinity,
+    },
+  ];
+
+  // Define steps for Scoring
+  const scoringProcessingSteps: ProcessingStep[] = [
+    {
+      id: "score-1",
+      text: "Analyzing Resume and Job Description",
+      duration: 3000,
+    }, // Example duration
+    { id: "score-2", text: "Calculating Score...", duration: Infinity }, // Stays until navigation
+  ];
 
   useEffect(() => {
     const checkUserAndFetchResume = async () => {
@@ -348,23 +393,42 @@ export default function Dashboard() {
     return <Loading loadingText="Loading Dashboard..." />;
   }
 
+  // Show MultiStepProcessingLoader for master resume upload
+  if (isUploading) {
+    return (
+      <MultiStepProcessingLoader
+        title="Processing Your Master Resume..."
+        steps={masterResumeProcessingSteps}
+      />
+    );
+  }
+
+  // Show MultiStepProcessingLoader for tailoring (when isTailoring is true)
+  // You'll need to ensure isTailoring is set to true at the start of handleTailorClick
+  // and false when done, similar to isUploading.
+  if (isTailoring) {
+    return (
+      <MultiStepProcessingLoader
+        title="Tailoring Your Resume..."
+        steps={tailoringProcessingSteps}
+      />
+    );
+  }
+
+  // Show MultiStepProcessingLoader for scoring
+  if (isScoring) {
+    return (
+      <MultiStepProcessingLoader
+        title="Scoring Your Resume..."
+        steps={scoringProcessingSteps}
+      />
+    );
+  }
+
   return (
     <div
-      className={`flex flex-col min-h-screen bg-gradient-to-r from-blue-100 via-white to-purple-100 ${inriaSans.className}`}
+      className={`flex flex-col min-h-screen bg-gradient-to-br from-slate-900 to-slate-700 text-gray-100 ${inriaSans.className}`}
     >
-      {(isTailoring || isScoring) && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ backgroundColor: "rgba(0, 0, 0, 0.75)" }}
-        >
-          <FontAwesomeIcon
-            icon={faSpinner}
-            spin
-            className="text-white text-[100px]"
-          />
-        </div>
-      )}
-
       <Head>
         <title>Dashboard - Resume Tailor</title>
         <meta
@@ -374,26 +438,26 @@ export default function Dashboard() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <nav className="shadow-md w-full py-3 px-6 flex justify-between items-center text-black sticky bg-gradient-to-r from-blue-100 via-white to-purple-100 top-0 z-10">
+      <nav className="shadow-lg w-full py-3 px-6 flex justify-between items-center text-white sticky top-0 z-10 bg-slate-800/30 backdrop-blur-md">
         <div className="flex flex-1 flex-row items-center gap-4">
           <Link href="/">
-            <span className="text-2xl font-bold cursor-pointer">
+            <span className="text-xl font-bold cursor-pointer hover:text-purple-300">
               Resume Tailor
             </span>
           </Link>
-          <span className="text-2xl">&gt;</span>
-          <span className="text-2xl">Dashboard</span>
+          <span className="text-xl text-gray-500">&gt;</span>
+          <span className="text-xl text-gray-200">Dashboard</span>
         </div>
       </nav>
 
       {/* Tabs Outside Content Area */}
-      <div className="w-xl pl-5 justify-start">
+      <div className="w-xl ml-5 mt-2 justify-start">
         <button
           onClick={() => setActiveTab("master")}
           className={`flex-1 py-3 px-6 text-center font-semibold rounded-t-md transition-all duration-200 ${
             activeTab === "master"
-              ? "bg-white text-black shadow-sm"
-              : "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+              ? activeTabClass
+              : inactiveTabClass + " bg-slate-800/30"
           }`}
         >
           Master Resume
@@ -402,18 +466,20 @@ export default function Dashboard() {
           onClick={() => setActiveTab("tailored")}
           className={`flex-1 py-3 px-6 text-center font-semibold rounded-t-md transition-all duration-200 ${
             activeTab === "tailored"
-              ? "bg-white text-black shadow-sm"
-              : "text-gray-500 hover:text-gray-800 hover:bg-gray-200"
+              ? activeTabClass
+              : inactiveTabClass + " bg-slate-800/30"
           }`}
         >
           Tailored Resumes
         </button>
       </div>
 
-      <div className="flex-1 flex flex-col p-4 justify-start items-center bg-white mx-2 mb-2 rounded-xl">
+      <div className="flex-1 flex flex-col p-4 justify-start items-center bg-slate-800 backdrop-blur-md mx-2 mb-2 rounded-xl border border-slate-700">
         {activeTab === "master" && (
           <>
-            <div className="w-full max-w-6xl mb-4">
+            <div
+              className={`w-full max-w-6xl ${uploadStatus ? "mb-4" : "mb-0"}`}
+            >
               {uploadStatus && (
                 <DismissableAlert
                   message={uploadStatus.message}
@@ -423,47 +489,39 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="flex flex-col lg:flex-row w-full">
+            <div className="flex flex-col lg:flex-row w-full h-[82vh]">
               {/* Left Column: Resume Preview & Upload (Collapsible) */}
               <div
                 className={`flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
                   isResumePreviewCollapsed
                     ? "w-full lg:w-0 lg:opacity-0 lg:mr-0 lg:p-0 lg:border-0"
-                    : "w-full lg:w-1/3 mr-6"
+                    : "w-full lg:w-1/3"
                 }`}
               >
-                <div className="flex-1 flex flex-col min-h-[60vh]">
+                <div className="flex-1 flex flex-col bg-slate-700 rounded-lg p-4">
                   {resumeLoading ? (
-                    <div className="flex-1 flex justify-center items-center text-gray-600 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex-1 flex justify-center items-center text-gray-300 bg-slate-700/50 rounded-lg border border-slate-600">
                       <div>
                         <FontAwesomeIcon icon={faSpinner} spin size="2x" />
                         <p className="mt-2">Loading Master Resume...</p>
                       </div>
                     </div>
-                  ) : resumeError && !masterResumeUrl ? (
-                    <div className="flex-1 flex justify-center items-center text-center text-red-600 bg-red-100 p-4 rounded-md border border-red-300">
-                      <p>{resumeError}</p>
-                    </div>
-                  ) : masterResumeUrl ? (
-                    <div className="w-full h-full bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+                  ) : masterResumeUrl && !resumeError ? (
+                    <div className="w-full h-full bg-slate-700 rounded-xl shadow-xl border border-slate-600 overflow-hidden">
                       <iframe
                         src={`${masterResumeUrl}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                        className="w-full h-full border-0 min-h-[60vh]"
+                        className="w-full h-full border-0 rounded-lg"
                         title="Master Resume Preview"
                       />
                     </div>
                   ) : (
-                    <div className="flex-1 flex flex-col justify-center items-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-10 text-center">
-                      <FontAwesomeIcon
-                        icon={faUpload}
-                        className="text-gray-400 text-5xl mb-4"
-                      />
-                      <p className="text-xl font-semibold text-gray-600 mb-2">
+                    <div className="flex-1 text-center p-6 bg-slate-700/50 rounded-lg border border-slate-600">
+                      <p className="text-gray-400 text-xl">
                         No Master Resume Uploaded
                       </p>
-                      <p className="text-gray-500 mb-6">
-                        Upload your master resume (PDF, DOCX, or TXT) to view it
-                        and see extracted items.
+                      <p className="text-sm text-gray-500 mt-2">
+                        Upload your master resume (PDF, DOCX, or TXT) to get
+                        started.
                       </p>
                     </div>
                   )}
@@ -504,27 +562,29 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Collapse Button */}
-              <button
-                onClick={handleToggleCollapse}
-                className={`text-white bg-blue-500 h-10 w-10 rounded-full my-auto hover:bg-blue-600 lg:inline-block hidden p-1 mr-4 transition-all duration-300 ease-in-out ml-[-35px]`}
-                aria-label={
-                  isResumePreviewCollapsed
-                    ? "Expand Preview"
-                    : "Collapse Preview"
-                }
-              >
-                <FontAwesomeIcon
-                  icon={
-                    isResumePreviewCollapsed ? faChevronRight : faChevronLeft
+              {/* Collapse/Expand Handle for Resume Preview - LG screens only */}
+              <div className="lg:flex hidden items-center justify-center mr-4 ml-[-5px]">
+                <button
+                  onClick={handleToggleCollapse}
+                  className="text-white bg-slate-700 hover:bg-slate-600 h-16 w-7 rounded-md flex items-center justify-center transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-purple-500"
+                  aria-label={
+                    isResumePreviewCollapsed
+                      ? "Expand Resume Preview"
+                      : "Collapse Resume Preview"
                   }
-                  size="lg"
-                />
-              </button>
+                >
+                  <FontAwesomeIcon
+                    icon={
+                      isResumePreviewCollapsed ? faChevronRight : faChevronLeft
+                    }
+                    size="xs"
+                  />
+                </button>
+              </div>
 
               {/* Middle Column: Extracted Items */}
               <div
-                className={`flex flex-col mr-6 transition-[width] duration-300 ease-in-out ${
+                className={`flex flex-col lg:ml-1 mr-6 transition-[width] duration-300 ease-in-out ${
                   viewTailoredResume ? "hidden" : "block"
                 } ${
                   isResumePreviewCollapsed
@@ -532,21 +592,17 @@ export default function Dashboard() {
                     : "w-full lg:w-1/3"
                 }`}
               >
-                <h2 className="text-2xl font-semibold text-gray-700 mb-4 flex justify-between items-center">
+                <h2 className="text-2xl font-semibold text-gray-300 mb-4 flex justify-between items-center">
                   Resume Items
                 </h2>
-                <div className="flex-1 bg-gray-50 p-4 rounded-lg border border-gray-200 overflow-y-auto max-h-[70vh]">
+                <div className="flex-1 bg-slate-700/50 p-4 rounded-lg border border-slate-600 overflow-y-auto">
                   {resumeLoading ? (
-                    <div className="flex justify-center items-center h-full text-gray-500">
+                    <div className="flex justify-center items-center h-full text-gray-400">
                       <FontAwesomeIcon icon={faSpinner} spin size="lg" />
                       <span className="ml-2">Loading items...</span>
                     </div>
-                  ) : resumeError && !resumeEntries ? (
-                    <div className="text-center text-red-500 p-4">
-                      Failed to load extracted items. {resumeError}
-                    </div>
                   ) : !masterResumeUrl ? (
-                    <div className="text-center text-gray-500 p-4">
+                    <div className="text-center text-gray-400 p-4">
                       Upload a master resume to see extracted items.
                     </div>
                   ) : resumeEntries && resumeEntries.length > 0 ? (
@@ -564,12 +620,12 @@ export default function Dashboard() {
                       })}
                     </div>
                   ) : resumeEntries ? (
-                    <div className="text-center text-gray-500 p-4">
+                    <div className="text-center text-gray-400 p-4">
                       No items were extracted from the resume. This might be due
                       to the document format or content.
                     </div>
                   ) : (
-                    <div className="text-center text-gray-500 p-4">
+                    <div className="text-center text-gray-400 p-4">
                       Waiting for items...
                     </div>
                   )}
@@ -581,13 +637,13 @@ export default function Dashboard() {
                   viewTailoredResume ? "hidden" : "block"
                 }`}
               >
-                <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+                <h2 className="text-2xl font-semibold text-gray-300 mb-4">
                   Tailor Resume
                 </h2>
                 <div className="flex-1 flex flex-col">
                   <textarea
                     id="jobDescription"
-                    className="p-4 text-black border border-gray-300 rounded-lg bg-white shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="p-4 text-gray-100 border border-slate-600 rounded-lg bg-slate-700 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
                     placeholder="Paste job description..."
                     value={jobDescription}
                     onChange={(e) => setJobDescription(e.target.value)}
@@ -624,7 +680,7 @@ export default function Dashboard() {
                   value={savePdfFilename}
                   onChange={(e) => setSavePdfFilename(e.target.value)}
                   placeholder="Enter filename..."
-                  className="p-3 text-black border border-gray-300 mb-2 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="p-3 text-gray-100 border border-slate-600 mb-2 rounded-lg bg-slate-700 shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
                 />
                 <div className="flex-1 overflow-hidden">
                   <SimpleResumeViewWrapper
@@ -641,13 +697,13 @@ export default function Dashboard() {
                   </button>
                   <button
                     onClick={handleDownloadPdf}
-                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-2"
                   >
                     Download as PDF <FontAwesomeIcon icon={faDownload} />
                   </button>
                   <button
                     onClick={handleSavePdf}
-                    className={`w-1/3 px-4 py-2 text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
+                    className={`w-1/3 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
                       isSavingPdf ? "opacity-50 cursor-not-allowed" : ""
                     }`}
                     disabled={isSavingPdf}
@@ -668,8 +724,8 @@ export default function Dashboard() {
                   <p
                     className={`mt-2 text-sm ${
                       savePdfStatus.includes("successfully")
-                        ? "text-green-600"
-                        : "text-red-600"
+                        ? "text-green-400"
+                        : "text-red-400"
                     }`}
                   >
                     {savePdfStatus}
@@ -683,9 +739,9 @@ export default function Dashboard() {
                 }`}
               >
                 <div
-                  className={`bg-white p-4 md:p-6 border border-gray-300 overflow-y-auto rounded-lg`}
+                  className={`bg-slate-700/50 backdrop-blur-md p-4 md:p-6 border border-slate-600 overflow-y-auto rounded-lg`}
                 >
-                  <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-700 leading-relaxed font-sans">
+                  <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-sans">
                     {jobDescription}
                   </pre>
                 </div>
@@ -703,111 +759,131 @@ export default function Dashboard() {
         )}
 
         {activeTab === "tailored" && (
-          <div className="w-full flex-1 flex flex-row">
+          <div className="w-full flex-1 flex flex-row min-h-0 relative">
+            {/* Collapse Button for Tailored List */}
+            <button
+              onClick={() =>
+                setIsTailoredListCollapsed(!isTailoredListCollapsed)
+              }
+              className={`absolute top-1/2 -translate-y-1/2 z-20 text-white bg-slate-700 hover:bg-slate-600 h-16 w-7 rounded-r-md shadow-lg flex items-center justify-center transition-all duration-300 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-purple-500 ${
+                isTailoredListCollapsed
+                  ? "left-1"
+                  : "left-[calc(33.333333%-0.875rem)]"
+              }`}
+              aria-label={
+                isTailoredListCollapsed
+                  ? "Expand Resume List"
+                  : "Collapse Resume List"
+              }
+            >
+              <FontAwesomeIcon
+                icon={isTailoredListCollapsed ? faChevronRight : faChevronLeft}
+                size="xs"
+              />
+            </button>
+
             {/* Left panel: List of tailored resumes */}
-            <div className="w-1/3 pr-4 overflow-y-auto max-h-[80vh]">
-              <h2 className="text-2xl font-semibold text-gray-700 mb-4">
+            <div
+              className={`p-4 rounded-lg bg-slate-700 flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
+                isTailoredListCollapsed ? "w-0 opacity-0" : "w-1/3"
+              }`}
+            >
+              <h2 className="text-xl font-semibold text-gray-300 mb-3 shrink-0">
                 Tailored Resumes
               </h2>
               {tailoredResumes.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2 flex-1 overflow-y-auto min-h-0">
                   {tailoredResumes.map((resume) => (
                     <div
                       key={resume.name}
                       onClick={() => handleSelectTailoredResume(resume)}
-                      className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                         selectedTailoredResume?.name === resume.name
-                          ? "bg-blue-100 border-2 border-blue-500 shadow-md"
-                          : "bg-white border border-gray-200 hover:border-blue-300 hover:bg-blue-50 hover:shadow"
+                          ? "bg-purple-600/40 border-2 border-purple-500 shadow-md"
+                          : "bg-slate-700/50 border border-slate-600 hover:border-purple-400 hover:bg-purple-700/20 hover:shadow"
                       }`}
                     >
                       <div className="flex items-center">
                         <FontAwesomeIcon
                           icon={faFileWord}
-                          className="text-blue-500 mr-3"
+                          className="text-purple-400 mr-2 text-lg"
                         />
                         <div>
-                          <h3 className="font-medium text-lg text-gray-800">
+                          <h3 className="font-medium text-base text-gray-200">
                             {resume.name}.pdf
                           </h3>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Created: {new Date().toLocaleDateString()}
-                          </p>
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center p-8 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-gray-500">No tailored resumes yet.</p>
-                  <p className="text-sm text-gray-400 mt-2">
+                <div className="text-center p-6 bg-slate-700/50 rounded-lg border border-slate-600 flex-1">
+                  <p className="text-gray-400">No tailored resumes yet.</p>
+                  <p className="text-sm text-gray-500 mt-1">
                     Create tailored resumes in the Master Resume tab.
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Right panel: Selected resume preview */}
-            <div className="w-2/3 pl-4">
+            {/* Right panel: Selected resume preview & actions - will take full width if left is collapsed */}
+            <div
+              className={`flex flex-col min-h-0 transition-all duration-300 ease-in-out ${
+                isTailoredListCollapsed ? "w-full pl-8" : "w-2/3 pl-4"
+              }`}
+            >
               {selectedTailoredResume ? (
-                <div className="flex flex-col h-full">
-                  <h2 className="text-2xl font-semibold text-gray-700 mb-4 flex items-center">
-                    <FontAwesomeIcon
-                      icon={faFileWord}
-                      className="text-blue-500 mr-3"
-                    />
-                    {selectedTailoredResume.name}.pdf
-                  </h2>
-                  <div className="flex-1 bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-                    <iframe
-                      src={`${selectedTailoredResume.url}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                      className="w-full h-full border-0 min-h-[60vh]"
-                      title="Tailored Resume Preview"
-                    />
-                  </div>
-                  <div className="mt-4 flex flex-col">
-                    <div className="mb-4">
-                      <label
-                        htmlFor="tailoredJobDescription"
-                        className="block text-sm font-medium text-gray-700 mb-1"
-                      >
-                        Job Description (for scoring)
-                      </label>
-                      <textarea
-                        id="tailoredJobDescription"
-                        className="p-3 text-black border border-gray-300 rounded-lg bg-white shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Paste job description for scoring..."
-                        value={tailoredJobDescription}
-                        onChange={(e) =>
-                          setTailoredJobDescription(e.target.value)
-                        }
-                        rows={4}
+                <div className="flex flex-row flex-1 min-h-0 gap-4">
+                  <div className="flex-1 flex flex-col min-h-0">
+                    <h2 className="text-xl font-semibold text-gray-300 mb-2 flex items-center shrink-0">
+                      <FontAwesomeIcon
+                        icon={faFileWord}
+                        className="text-purple-400 mr-2"
                       />
-                      {!tailoredJobDescription.trim() && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          Enter a job description to enable scoring against this
-                          resume.
-                        </p>
-                      )}
+                      {selectedTailoredResume.name}.pdf
+                    </h2>
+                    <div className="flex-1 bg-slate-700 rounded-xl shadow-lg border border-slate-600 overflow-hidden p-2 md:p-4 flex justify-center items-start">
+                      <div className="w-full max-w-3xl h-full bg-white">
+                        <iframe
+                          src={`${selectedTailoredResume.url}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                          className="w-full h-full border-0"
+                          title="Tailored Resume Preview"
+                        />
+                      </div>
                     </div>
-                    <div className="flex justify-end space-x-4">
+                  </div>
+
+                  <div className="w-2/5 flex flex-col min-h-0">
+                    <h2 className="text-xl font-semibold text-gray-300 mb-2 shrink-0">
+                      Details & Actions
+                    </h2>
+                    <textarea
+                      id="tailoredJobDescription"
+                      className="p-3 text-gray-100 border border-slate-600 rounded-lg bg-slate-700 shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 flex-1 mb-3"
+                      placeholder="Paste job description for scoring..."
+                      value={tailoredJobDescription}
+                      onChange={(e) =>
+                        setTailoredJobDescription(e.target.value)
+                      }
+                    />
+                    <div className="flex flex-col space-y-2 shrink-0 md:flex-row md:space-y-0 md:space-x-2 justify-end">
                       <a
                         href={selectedTailoredResume.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="px-6 py-2 text-sm font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 flex items-center gap-2"
+                        className="px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-md shadow hover:bg-purple-700 transition duration-200 flex items-center justify-center gap-2 md:w-auto w-full"
                       >
-                        <FontAwesomeIcon icon={faDownload} /> Download PDF
+                        <FontAwesomeIcon icon={faDownload} /> Download
                       </a>
                       <button
-                        className={`px-6 py-2 text-sm font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 flex items-center gap-2 ${
-                          !tailoredJobDescription.trim()
+                        className={`px-4 py-2 text-sm font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 flex items-center justify-center gap-2 md:w-auto w-full ${
+                          !tailoredJobDescription.trim() || isScoring
                             ? "opacity-50 cursor-not-allowed"
                             : ""
                         }`}
                         onClick={handleScoreTailoredResume}
-                        disabled={!tailoredJobDescription.trim()}
+                        disabled={!tailoredJobDescription.trim() || isScoring}
                       >
                         {isScoring ? (
                           <>
@@ -823,15 +899,15 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 p-10">
+                <div className="flex flex-col items-center justify-center h-full bg-slate-700/50 rounded-lg border-2 border-dashed border-slate-600 p-10">
                   <FontAwesomeIcon
                     icon={faFileWord}
-                    className="text-gray-400 text-5xl mb-4"
+                    className="text-gray-500 text-5xl mb-4"
                   />
-                  <p className="text-xl font-semibold text-gray-600 mb-2">
+                  <p className="text-xl font-semibold text-gray-300 mb-2">
                     No Resume Selected
                   </p>
-                  <p className="text-gray-500 text-center">
+                  <p className="text-gray-400 text-center">
                     Select a tailored resume from the list to view it here.
                   </p>
                 </div>
@@ -862,15 +938,15 @@ const EntryCard = ({ entry }: { entry: ResumeEntry }) => {
   const icon = getIcon(entry.type);
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow duration-200">
+    <div className="bg-slate-700/50 hover:bg-slate-600/50 p-4 rounded-lg shadow border border-slate-600 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center mb-2">
-        <FontAwesomeIcon icon={icon} className="text-blue-500 mr-3 text-xl" />
+        <FontAwesomeIcon icon={icon} className="text-purple-400 mr-3 text-xl" />
         <div>
-          <h3 className="font-semibold text-lg text-gray-800">
+          <h3 className="font-semibold text-lg text-gray-200">
             {entry.title || "Untitled Item"}
           </h3>
           {entry.organization && (
-            <p className="text-sm text-gray-600">{entry.organization}</p>
+            <p className="text-sm text-gray-400">{entry.organization}</p>
           )}
         </div>
       </div>
@@ -881,7 +957,7 @@ const EntryCard = ({ entry }: { entry: ResumeEntry }) => {
         </p>
       )}
       {entry.description && (
-        <ul className="text-sm text-gray-700 list-disc pl-5">
+        <ul className="text-sm text-gray-300 list-disc pl-5">
           {entry.description.split("\n").map(
             (point, index) =>
               point.trim() && (
@@ -892,7 +968,7 @@ const EntryCard = ({ entry }: { entry: ResumeEntry }) => {
           )}
         </ul>
       )}
-      <p className="text-xs text-gray-400 mt-2 capitalize">
+      <p className="text-xs text-gray-500 mt-2 capitalize">
         Type: {entry.type}
       </p>
     </div>
