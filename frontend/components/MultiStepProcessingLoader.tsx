@@ -118,11 +118,10 @@ const MultiStepProcessingLoader: React.FC<MultiStepProcessingLoaderProps> = ({
       return; // No timeout to advance, no interval for progress filling
     }
 
-    let progressIntervalId: NodeJS.Timeout | undefined;
     const startTime = Date.now();
 
     // Animate progress for the current step
-    progressIntervalId = setInterval(() => {
+    const progressIntervalId = setInterval(() => {
       const elapsedTime = Date.now() - startTime;
       const calculatedProgress = Math.min(
         100,
