@@ -15,10 +15,10 @@ const pdfStyles = `
     font-size: 12pt !important;
   }
   .pdf-render-mode h1 {
-    font-size: 18pt !important;
+    font-size: 17pt !important;
   }
   .pdf-render-mode h2 {
-    font-size: 14pt !important;
+    font-size: 13pt !important;
   }
   .pdf-render-mode h3 {
     font-size: 12pt !important;
