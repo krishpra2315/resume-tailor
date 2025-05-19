@@ -2,7 +2,7 @@
 
 # Resume Tailor – AI-Powered Resume Customization Platform
 
-[**Resume Tailor**](https://resume-tailor-kp.netlify.app/) is an AI-driven web application that automatically tailors a user's resume to a specific job description using AWS services and large language models. Built to help job seekers land interviews by focusing their resumes on the most relevant qualifications, this platform also gives recruiters a glimpse into my skills in full-stack development, cloud architecture, and AI integration.
+[**Resume Tailor**](https://resume-tailor-kp.netlify.app/) is an AI-driven web application that automatically tailors a user's resume to a specific job description using AWS services and large language models.
 
 ## Key Features
 
