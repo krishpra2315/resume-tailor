@@ -5,14 +5,12 @@ import {
   faCheckCircle,
 } from "@fortawesome/free-solid-svg-icons";
 
-// Define the structure for a single processing step
 interface ProcessingStep {
-  id: number | string; // Allow string IDs for more flexibility if needed
+  id: number | string;
   text: string;
-  duration: number; // Use Infinity for steps that run until externally stopped
+  duration: number;
 }
 
-// Props for the newly generalized loader
 interface MultiStepProcessingLoaderProps {
   title: string;
   steps: ProcessingStep[];
@@ -34,7 +32,7 @@ const StepDisplay: React.FC<StepDisplayProps> = ({
   return (
     <div
       className={`flex items-start w-full relative mb-10 last:mb-0 ${
-        isLastStep && status === "pending" ? "hidden" : "block" // Keep this logic if desired
+        isLastStep && status === "pending" ? "hidden" : "block"
       }`}
     >
       {/* Icon Container */}
@@ -109,18 +107,15 @@ const MultiStepProcessingLoader: React.FC<MultiStepProcessingLoaderProps> = ({
 
     const currentStepInfo = steps[currentStepIndex];
 
-    // For steps with Infinity duration (like a final "finalizing" step)
     if (currentStepInfo.duration === Infinity) {
       if (currentStepIndex === steps.length - 1) {
-        // If it's the actual last step
-        setStepProgress(50); // Show it as actively in-progress
+        setStepProgress(50);
       }
-      return; // No timeout to advance, no interval for progress filling
+      return;
     }
 
     const startTime = Date.now();
 
-    // Animate progress for the current step
     const progressIntervalId = setInterval(() => {
       const elapsedTime = Date.now() - startTime;
       const calculatedProgress = Math.min(
@@ -128,7 +123,7 @@ const MultiStepProcessingLoader: React.FC<MultiStepProcessingLoaderProps> = ({
         (elapsedTime / currentStepInfo.duration) * 100
       );
       setStepProgress(calculatedProgress);
-    }, 50); // Update progress frequently
+    }, 50);
 
     // Timeout to move to the next step
     const stepTimeoutId = setTimeout(() => {
@@ -143,41 +138,36 @@ const MultiStepProcessingLoader: React.FC<MultiStepProcessingLoaderProps> = ({
       if (progressIntervalId) clearInterval(progressIntervalId);
       clearTimeout(stepTimeoutId);
     };
-  }, [currentStepIndex, steps]); // Added 'steps' to dependency array
+  }, [currentStepIndex, steps]);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-900/90 backdrop-blur-sm p-4">
       <div className="bg-slate-800 p-6 sm:p-10 rounded-xl shadow-2xl w-full max-w-md">
         <h2 className="text-2xl sm:text-3xl font-bold text-purple-400 mb-8 sm:mb-12 text-center">
-          {title} {/* Use dynamic title from props */}
+          {title}
         </h2>
         <div className="relative">
-          {steps.map(
-            (
-              step,
-              index // Use dynamic steps from props
-            ) => (
-              <StepDisplay
-                key={step.id}
-                text={step.text}
-                status={
-                  index < currentStepIndex
-                    ? "completed"
-                    : index === currentStepIndex
-                    ? "in-progress"
-                    : "pending"
-                }
-                progress={
-                  index === currentStepIndex
-                    ? stepProgress
-                    : index < currentStepIndex
-                    ? 100
-                    : 0
-                }
-                isLastStep={index === steps.length - 1}
-              />
-            )
-          )}
+          {steps.map((step, index) => (
+            <StepDisplay
+              key={step.id}
+              text={step.text}
+              status={
+                index < currentStepIndex
+                  ? "completed"
+                  : index === currentStepIndex
+                  ? "in-progress"
+                  : "pending"
+              }
+              progress={
+                index === currentStepIndex
+                  ? stepProgress
+                  : index < currentStepIndex
+                  ? 100
+                  : 0
+              }
+              isLastStep={index === steps.length - 1}
+            />
+          ))}
         </div>
       </div>
     </div>

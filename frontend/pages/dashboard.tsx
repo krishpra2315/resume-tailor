@@ -29,6 +29,12 @@ import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
 import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Loading from "@/components/Loading";
 import MultiStepProcessingLoader from "@/components/MultiStepProcessingLoader";
+import TextareaWithCounter from "@/components/TextareaWithCounter";
+import TailoredResumeEditor from "@/components/TailoredResumeEditor";
+import ResumePreviewModal from "@/components/ResumePreviewModal";
+
+// Add these constants near the top of the file, after the imports
+const MAX_CHARACTERS = 5000; // You can adjust this number as needed
 
 // Define the structure for a single processing step (can be co-located or imported if used elsewhere)
 interface ProcessingStep {
@@ -98,6 +104,8 @@ export default function Dashboard() {
   const [savePdfStatus, setSavePdfStatus] = useState<string | null>(null);
   const [savePdfFilename, setSavePdfFilename] = useState<string>("");
   const [savePdfPath, setSavePdfPath] = useState<string | null>(null);
+  const [isResumePreviewModalOpen, setIsResumePreviewModalOpen] =
+    useState<boolean>(false);
 
   const [isScoring, setIsScoring] = useState<boolean>(false);
 
@@ -288,48 +296,26 @@ export default function Dashboard() {
     }
   };
 
-  const handleDownloadPdf = useCallback(() => {
-    if (resumeViewRef.current && typeof window !== "undefined") {
-      try {
-        if (savePdfFilename === "") {
-          resumeViewRef.current.downloadAsPdf();
-        } else {
-          resumeViewRef.current.downloadAsPdf(savePdfFilename);
-        }
-      } catch (error) {
-        console.error("Error downloading PDF:", error);
-        // Show some user-friendly error message
-        alert("Failed to download PDF. Please try again.");
-      }
-    } else {
-      console.warn("Resume view reference is not available");
-    }
-  }, [savePdfFilename]);
+  const handleTailoredResumeChange = (updatedEntries: ResumeEntry[]) => {
+    setTailoredResumeEntries(updatedEntries);
+  };
 
-  const handleSavePdf = useCallback(async () => {
-    if (resumeViewRef.current && typeof window !== "undefined") {
-      if (savePdfFilename === "") {
-        setSavePdfStatus("Please enter a filename.");
-        return;
-      }
+  const handleOpenResumePreviewModal = useCallback(() => {
+    setIsResumePreviewModalOpen(true);
+  }, []);
 
-      setIsSavingPdf(true);
-      setSavePdfStatus("Saving PDF...");
-      try {
-        const s3Key = await resumeViewRef.current.savePdfToServer(
-          savePdfFilename
-        );
-        setSavePdfPath(s3Key);
-        setSavePdfStatus("PDF saved successfully!");
-      } catch (error) {
-        setSavePdfStatus("Failed to save PDF. Please try again.");
-        console.error("Failed to save PDF to server:", error);
-      } finally {
-        setIsSavingPdf(false);
-        setTimeout(() => setSavePdfStatus(null), 5000);
-      }
-    }
-  }, [savePdfFilename]);
+  const handleCloseResumePreviewModal = useCallback(() => {
+    setIsResumePreviewModalOpen(false);
+  }, []);
+
+  const handleSaveResume = useCallback((s3Key: string, filename: string) => {
+    setSavePdfPath(s3Key);
+    setSavePdfFilename(filename);
+    // Close the modal after a short delay to let the user see the success message
+    setTimeout(() => {
+      setIsResumePreviewModalOpen(false);
+    }, 2000);
+  }, []);
 
   const handleScore = async () => {
     if (savePdfPath) {
@@ -490,7 +476,6 @@ export default function Dashboard() {
             </div>
 
             <div className="flex flex-col lg:flex-row w-full h-[82vh]">
-              {/* Left Column: Resume Preview & Upload (Collapsible) */}
               <div
                 className={`flex flex-col transition-all duration-300 ease-in-out overflow-hidden ${
                   isResumePreviewCollapsed
@@ -641,13 +626,14 @@ export default function Dashboard() {
                   Tailor Resume
                 </h2>
                 <div className="flex-1 flex flex-col">
-                  <textarea
-                    id="jobDescription"
-                    className="p-4 text-gray-100 border border-slate-600 rounded-lg bg-slate-700 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
-                    placeholder="Paste job description..."
+                  <TextareaWithCounter
                     value={jobDescription}
-                    onChange={(e) => setJobDescription(e.target.value)}
-                    disabled={!masterResumeUrl || isUploading}
+                    onChange={(e) =>
+                      setJobDescription(e.target.value.slice(0, MAX_CHARACTERS))
+                    }
+                    placeholder="Paste the Job Description here..."
+                    maxLength={MAX_CHARACTERS}
+                    className="p-4 text-white border border-gray-600 rounded-lg bg-slate-800 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
                   />
                   <button
                     onClick={handleTailorClick}
@@ -671,90 +657,62 @@ export default function Dashboard() {
               </div>
 
               <div
-                className={`w-full lg:w-1/2 flex flex-col h-[80vh] ${
+                className={`w-full flex flex-row ${
                   viewTailoredResume ? "block" : "hidden"
                 }`}
               >
-                <input
-                  type="text"
-                  value={savePdfFilename}
-                  onChange={(e) => setSavePdfFilename(e.target.value)}
-                  placeholder="Enter filename..."
-                  className="p-3 text-gray-100 border border-slate-600 mb-2 rounded-lg bg-slate-700 shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400"
-                />
-                <div className="flex-1 overflow-hidden">
-                  <SimpleResumeViewWrapper
-                    ref={resumeViewRef}
-                    resumeEntries={tailoredResumeEntries}
+                <div className="w-2/3 h-full pr-4">
+                  <TailoredResumeEditor
+                    entries={tailoredResumeEntries}
+                    isResumePreviewCollapsed={isResumePreviewCollapsed}
+                    onChange={handleTailoredResumeChange}
+                    onMakePdf={handleOpenResumePreviewModal}
                   />
                 </div>
-                <div className="mt-2 flex flex-row justify-center items-center">
-                  <button
-                    onClick={() => setViewTailoredResume(false)}
-                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-red-600 rounded-md shadow hover:bg-red-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
-                  >
-                    Go Back <FontAwesomeIcon icon={faXmark} />
-                  </button>
-                  <button
-                    onClick={handleDownloadPdf}
-                    className="mr-4 w-1/3 px-4 py-2 text-md font-semibold text-white bg-blue-500 rounded-md shadow hover:bg-blue-600 transition duration-200 ease-in-out flex items-center justify-center gap-2"
-                  >
-                    Download as PDF <FontAwesomeIcon icon={faDownload} />
-                  </button>
-                  <button
-                    onClick={handleSavePdf}
-                    className={`w-1/3 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
-                      isSavingPdf ? "opacity-50 cursor-not-allowed" : ""
-                    }`}
-                    disabled={isSavingPdf}
-                  >
-                    {isSavingPdf ? (
-                      <>
-                        <FontAwesomeIcon icon={faSpinner} spin /> Saving...
-                      </>
-                    ) : (
-                      <>
-                        Save <FontAwesomeIcon icon={faSave} />
-                      </>
-                    )}
-                  </button>
-                </div>
 
-                {savePdfStatus && (
-                  <p
-                    className={`mt-2 text-sm ${
-                      savePdfStatus.includes("successfully")
-                        ? "text-green-400"
-                        : "text-red-400"
+                <div className="w-1/3 flex flex-col h-full">
+                  <div
+                    className={`bg-slate-700/50 backdrop-blur-md p-4 md:p-6 border border-slate-600 overflow-y-auto rounded-lg h-full`}
+                  >
+                    <h3 className="text-lg font-semibold text-gray-300 mb-3">
+                      Job Description
+                    </h3>
+                    <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-sans">
+                      {jobDescription}
+                    </pre>
+                  </div>
+
+                  <div
+                    className={`flex flex-row w-full mb-3 mt-3 ${
+                      viewTailoredResume ? "flex" : "hidden"
                     }`}
                   >
-                    {savePdfStatus}
-                  </p>
-                )}
-              </div>
+                    <button
+                      onClick={() => setViewTailoredResume(false)}
+                      className="px-4 py-2 mr-2 text-md font-semibold text-white bg-red-600 rounded-md shadow hover:bg-red-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                    >
+                      Back to Resume Builder
+                    </button>
 
-              <div
-                className={`flex flex-col w-full lg:w-1/3 ml-6 h-[80vh] ${
-                  viewTailoredResume ? "block" : "hidden"
-                }`}
-              >
-                <div
-                  className={`bg-slate-700/50 backdrop-blur-md p-4 md:p-6 border border-slate-600 overflow-y-auto rounded-lg`}
-                >
-                  <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-sans">
-                    {jobDescription}
-                  </pre>
-                </div>
-                <div className="flex-1 flex flex-col mt-2 justify-center items-center">
-                  <button
-                    onClick={handleScore}
-                    className="w-1/2 px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
-                  >
-                    Score <FontAwesomeIcon icon={faChevronRight} />
-                  </button>
+                    <button
+                      onClick={handleScore}
+                      disabled={!savePdfPath}
+                      className="ml-auto px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
+                    >
+                      Score This Resume
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Resume Preview Modal */}
+            <ResumePreviewModal
+              isOpen={isResumePreviewModalOpen}
+              onClose={handleCloseResumePreviewModal}
+              resumeEntries={tailoredResumeEntries}
+              onSave={handleSaveResume}
+            />
           </>
         )}
 
@@ -858,16 +816,18 @@ export default function Dashboard() {
                     <h2 className="text-xl font-semibold text-gray-300 mb-2 shrink-0">
                       Details & Actions
                     </h2>
-                    <textarea
-                      id="tailoredJobDescription"
-                      className="p-3 text-gray-100 border border-slate-600 rounded-lg bg-slate-700 shadow w-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-400 flex-1 mb-3"
-                      placeholder="Paste job description for scoring..."
+                    <TextareaWithCounter
                       value={tailoredJobDescription}
                       onChange={(e) =>
-                        setTailoredJobDescription(e.target.value)
+                        setTailoredJobDescription(
+                          e.target.value.slice(0, MAX_CHARACTERS)
+                        )
                       }
+                      placeholder="Paste the Job Description here..."
+                      maxLength={MAX_CHARACTERS}
+                      className="p-4 text-white border border-gray-600 rounded-lg bg-slate-800 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
                     />
-                    <div className="flex flex-col space-y-2 shrink-0 md:flex-row md:space-y-0 md:space-x-2 justify-end">
+                    <div className="flex flex-col pt-2 space-y-2 shrink-0 md:flex-row md:space-y-0 md:space-x-2 justify-end">
                       <a
                         href={selectedTailoredResume.url}
                         target="_blank"
@@ -920,7 +880,6 @@ export default function Dashboard() {
   );
 }
 
-// Helper Component for Entry Card
 const EntryCard = ({ entry }: { entry: ResumeEntry }) => {
   const getIcon = (type: string) => {
     switch (type.toLowerCase()) {
@@ -931,7 +890,7 @@ const EntryCard = ({ entry }: { entry: ResumeEntry }) => {
       case "project":
         return faLightbulb;
       default:
-        return faFileLines; // Generic icon for unknown types
+        return faFileLines;
     }
   };
 
