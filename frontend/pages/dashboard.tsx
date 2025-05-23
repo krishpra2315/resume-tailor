@@ -664,19 +664,18 @@ export default function Dashboard() {
                 <div className="w-2/3 h-full pr-4">
                   <TailoredResumeEditor
                     entries={tailoredResumeEntries}
-                    isResumePreviewCollapsed={isResumePreviewCollapsed}
                     onChange={handleTailoredResumeChange}
                     onMakePdf={handleOpenResumePreviewModal}
                   />
                 </div>
 
                 <div className="w-1/3 flex flex-col h-full">
+                  <h3 className="pl-1 text-lg font-semibold text-gray-300 mb-3">
+                    Job Description
+                  </h3>
                   <div
                     className={`bg-slate-700/50 backdrop-blur-md p-4 md:p-6 border border-slate-600 overflow-y-auto rounded-lg h-full`}
                   >
-                    <h3 className="text-lg font-semibold text-gray-300 mb-3">
-                      Job Description
-                    </h3>
                     <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-sans">
                       {jobDescription}
                     </pre>
@@ -814,7 +813,7 @@ export default function Dashboard() {
 
                   <div className="w-2/5 flex flex-col min-h-0">
                     <h2 className="text-xl font-semibold text-gray-300 mb-2 shrink-0">
-                      Details & Actions
+                      Score Resume
                     </h2>
                     <TextareaWithCounter
                       value={tailoredJobDescription}

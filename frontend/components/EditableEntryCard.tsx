@@ -9,6 +9,7 @@ import {
   faXmark,
   faCheck,
   faTrash,
+  faGripVertical,
 } from "@fortawesome/free-solid-svg-icons";
 
 export interface ResumeEntry {
@@ -25,6 +26,7 @@ interface EditableEntryCardProps {
   index: number;
   onUpdate: (index: number, updatedEntry: ResumeEntry) => void;
   onDelete: (index: number) => void;
+  draggable?: boolean;
 }
 
 export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
@@ -32,6 +34,7 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
   index,
   onUpdate,
   onDelete,
+  draggable = false,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedEntry, setEditedEntry] = useState<ResumeEntry>(entry);
@@ -65,7 +68,7 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-700/50 hover:bg-slate-600/50 p-4 rounded-lg shadow border border-slate-600 hover:shadow-md transition-shadow duration-200 relative">
+    <div className="flex flex-col bg-slate-700/50 hover:bg-slate-600/50 p-4 rounded-lg shadow border border-slate-600 hover:shadow-md transition-shadow duration-200 relative h-full">
       {/* Card Controls */}
       <div className="absolute right-2 top-2 flex space-x-2">
         {!isEditing ? (
@@ -108,9 +111,16 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
         )}
       </div>
 
+      {/* Drag Handle */}
+      {draggable && !isEditing && (
+        <div className="absolute top-2/5 left-2 cursor-grab drag-handle text-gray-400 hover:text-purple-400 hover:scale-110 transition-all duration-200 p-1 rounded-md hover:bg-slate-600/30">
+          <FontAwesomeIcon icon={faGripVertical} />
+        </div>
+      )}
+
       {isEditing ? (
-        <form onSubmit={handleSubmit} className="pt-6 flex-1 flex flex-col">
-          <div className="space-y-3 flex-1">
+        <form onSubmit={handleSubmit} className="pt-6 flex flex-col">
+          <div className="space-y-3">
             <div>
               <label
                 htmlFor={`title-${index}`}
@@ -182,7 +192,7 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
               </div>
             </div>
 
-            <div className="flex-1 flex flex-col">
+            <div>
               <label
                 htmlFor={`description-${index}`}
                 className="block text-sm font-medium text-gray-300 mb-1"
@@ -195,13 +205,13 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
                 value={editedEntry.description || ""}
                 onChange={handleInputChange}
                 rows={5}
-                className="flex-1 w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
+                className="w-full px-3 py-2 bg-slate-800 border border-slate-600 rounded-md text-gray-200 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
               />
             </div>
           </div>
         </form>
       ) : (
-        <div className="flex flex-col flex-1">
+        <div className={`flex flex-col ${draggable ? "pl-6" : ""}`}>
           <div className="flex items-center mb-2 mt-1 ml-1">
             <FontAwesomeIcon
               icon={icon}
@@ -222,7 +232,7 @@ export const EditableEntryCard: React.FC<EditableEntryCardProps> = ({
               {entry.endDate}
             </p>
           )}
-          <div className="flex-1">
+          <div>
             {entry.description && (
               <ul className="text-sm text-gray-300 list-disc pl-5">
                 {entry.description.split("\n").map(

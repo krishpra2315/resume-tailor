@@ -1,26 +1,31 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useState, useRef, useEffect } from "react";
 import { EditableEntryCard, ResumeEntry } from "./EditableEntryCard";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import {
-  faPlus,
-  faArrowUp,
-  faArrowDown,
-} from "@fortawesome/free-solid-svg-icons";
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+} from "@atlaskit/pragmatic-drag-and-drop/element/adapter";
 
 interface TailoredResumeEditorProps {
   entries: ResumeEntry[];
-  isResumePreviewCollapsed: boolean;
   onChange: (entries: ResumeEntry[]) => void;
   onMakePdf: () => void;
 }
 
 const TailoredResumeEditor: React.FC<TailoredResumeEditorProps> = ({
   entries,
-  isResumePreviewCollapsed,
   onChange,
   onMakePdf,
 }) => {
   const [localEntries, setLocalEntries] = useState<ResumeEntry[]>(entries);
+  const entriesRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const bottomDropAreaRef = useRef<HTMLDivElement | null>(null);
+  const [activeDropTarget, setActiveDropTarget] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Update the parent component when local entries change
   React.useEffect(() => {
@@ -32,28 +37,176 @@ const TailoredResumeEditor: React.FC<TailoredResumeEditorProps> = ({
     setLocalEntries(entries);
   }, [entries]);
 
-  const moveEntry = useCallback(
-    (index: number, direction: "up" | "down") => {
-      if (
-        (direction === "up" && index === 0) ||
-        (direction === "down" && index === localEntries.length - 1)
-      ) {
-        return; // Can't move beyond boundaries
-      }
+  // Setup drag and drop
+  useEffect(() => {
+    const cleanups: Array<() => void> = [];
 
-      const newEntries = [...localEntries];
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (listRef.current) {
+      // Setup the drop target (the list itself)
+      const cleanup = dropTargetForElements({
+        element: listRef.current,
+        onDragEnter: () => {
+          // Don't show indicator at the end if dragging the last item
+          if (
+            draggedIndex !== null &&
+            draggedIndex === localEntries.length - 1
+          ) {
+            return;
+          }
+          setActiveDropTarget(localEntries.length);
+        },
+        onDragLeave: () => {
+          setActiveDropTarget(null);
+        },
+      });
+      cleanups.push(cleanup);
+    }
 
-      // Swap the entries
-      [newEntries[index], newEntries[targetIndex]] = [
-        newEntries[targetIndex],
-        newEntries[index],
-      ];
+    // Setup a specific drop target for the bottom area
+    if (bottomDropAreaRef.current) {
+      const bottomDropCleanup = dropTargetForElements({
+        element: bottomDropAreaRef.current,
+        onDragEnter: () => {
+          // Don't show indicator at the end if dragging the last item
+          if (
+            draggedIndex !== null &&
+            draggedIndex === localEntries.length - 1
+          ) {
+            return;
+          }
+          setActiveDropTarget(localEntries.length);
+        },
+        onDragLeave: () => {
+          setActiveDropTarget(null);
+        },
+      });
+      cleanups.push(bottomDropCleanup);
+    }
 
-      setLocalEntries(newEntries);
-    },
-    [localEntries]
-  );
+    // Setup draggable items and individual drop targets
+    Object.entries(entriesRef.current).forEach(([key, element]) => {
+      if (!element) return;
+
+      const index = parseInt(key.split("-")[1], 10);
+      const dragHandle = element.querySelector(".drag-handle");
+
+      if (!dragHandle) return;
+
+      // Make item draggable
+      const draggableCleanup = draggable({
+        element,
+        dragHandle: dragHandle as HTMLElement,
+        onDragStart: () => {
+          setIsDragging(true);
+          setDraggedIndex(index);
+        },
+        onDrop: () => {
+          setIsDragging(false);
+          setActiveDropTarget(null);
+          setDraggedIndex(null);
+        },
+      });
+      cleanups.push(draggableCleanup);
+
+      // Make item a drop target
+      const dropTargetCleanup = dropTargetForElements({
+        element,
+        onDragEnter: () => {
+          // Don't show indicator on the item being dragged or immediately after it
+          if (index === draggedIndex) {
+            setActiveDropTarget(null);
+            return;
+          }
+
+          // If dragging from above to below, show indicator below the target
+          if (draggedIndex !== null && draggedIndex < index) {
+            setActiveDropTarget(index + 1);
+          } else {
+            setActiveDropTarget(index);
+          }
+        },
+        onDragLeave: () => {
+          setActiveDropTarget(null);
+        },
+      });
+      cleanups.push(dropTargetCleanup);
+    });
+
+    // Monitor for drag and drop events
+    const unsubscribe = monitorForElements({
+      onDrop: ({ source, location }) => {
+        if (!location.current.dropTargets.length) {
+          return;
+        }
+
+        const sourceElement = source.element;
+        const sourceIndex = parseInt(
+          sourceElement.getAttribute("data-entry-index") || "-1",
+          10
+        );
+
+        if (sourceIndex === -1) return;
+
+        // Get target index from active drop target
+        let targetIndex = activeDropTarget;
+
+        // If we don't have an active target, try to find one from the location
+        if (targetIndex === null) {
+          const targetElement = location.current.dropTargets[0].element;
+
+          // Check if we're dropping on the bottom drop area
+          if (targetElement === bottomDropAreaRef.current) {
+            targetIndex = localEntries.length;
+          } else {
+            const closestEntryElement =
+              targetElement.closest("[data-entry-index]");
+
+            if (closestEntryElement) {
+              const indexAttr =
+                closestEntryElement.getAttribute("data-entry-index");
+              targetIndex = indexAttr
+                ? parseInt(indexAttr, 10)
+                : localEntries.length;
+            } else {
+              targetIndex = localEntries.length;
+            }
+          }
+        }
+
+        // Don't do anything if dropping in the same place
+        if (
+          sourceIndex === targetIndex ||
+          targetIndex === sourceIndex + 1 ||
+          targetIndex === null
+        ) {
+          return;
+        }
+
+        const newEntries = [...localEntries];
+        const [removed] = newEntries.splice(sourceIndex, 1);
+
+        // If dropping at the end of the list
+        if (targetIndex > newEntries.length) {
+          newEntries.push(removed);
+        } else {
+          // If dropping after the original position, we need to adjust the index
+          // since the array length changed after removal
+          if (targetIndex > sourceIndex) {
+            targetIndex -= 1;
+          }
+          newEntries.splice(targetIndex, 0, removed);
+        }
+
+        setLocalEntries(newEntries);
+        setActiveDropTarget(null);
+      },
+    });
+    cleanups.push(unsubscribe);
+
+    return () => {
+      cleanups.forEach((cleanup) => cleanup());
+    };
+  }, [localEntries, activeDropTarget, draggedIndex]);
 
   const handleUpdateEntry = useCallback(
     (index: number, updatedEntry: ResumeEntry) => {
@@ -84,6 +237,18 @@ const TailoredResumeEditor: React.FC<TailoredResumeEditorProps> = ({
     setLocalEntries([...localEntries, newEntry]);
   }, [localEntries]);
 
+  // Render a drop indicator at the active drop target
+  const renderDropIndicator = (index: number) => {
+    if (!isDragging || activeDropTarget !== index || draggedIndex === index)
+      return null;
+
+    return (
+      <div className="h-1 w-full my-2 bg-purple-500 rounded relative">
+        <div className="absolute left-0 -top-1 w-3 h-3 rounded-full bg-purple-500"></div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
@@ -107,53 +272,55 @@ const TailoredResumeEditor: React.FC<TailoredResumeEditorProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto pr-2">
-        <div
-          className={`grid ${
-            isResumePreviewCollapsed ? "grid-cols-2" : "grid-cols-1"
-          } gap-4 auto-rows-fr`}
-        >
+        <div ref={listRef} className="space-y-1">
+          {/* Render a drop indicator at the top if necessary */}
+          {renderDropIndicator(0)}
+
           {localEntries.map((entry, index) => (
-            <div key={`entry-${index}`} className="relative h-full">
-              <div className="absolute left-2 top-2 flex flex-col">
-                <button
-                  onClick={() => moveEntry(index, "up")}
-                  disabled={index === 0}
-                  className={`p-1 mb-1 rounded-md ${
-                    index === 0
-                      ? "text-gray-600 cursor-not-allowed"
-                      : "text-gray-400 hover:text-purple-400 hover:bg-slate-600/50"
-                  }`}
-                  aria-label="Move up"
-                >
-                  <FontAwesomeIcon icon={faArrowUp} />
-                </button>
-                <button
-                  onClick={() => moveEntry(index, "down")}
-                  disabled={index === localEntries.length - 1}
-                  className={`p-1 rounded-md ${
-                    index === localEntries.length - 1
-                      ? "text-gray-600 cursor-not-allowed"
-                      : "text-gray-400 hover:text-purple-400 hover:bg-slate-600/50"
-                  }`}
-                  aria-label="Move down"
-                >
-                  <FontAwesomeIcon icon={faArrowDown} />
-                </button>
+            <React.Fragment key={`entry-${index}`}>
+              <div
+                ref={(el) => {
+                  entriesRef.current[`entry-${index}`] = el;
+                }}
+                className={`relative ${isDragging ? "z-10" : ""} ${
+                  isDragging && draggedIndex === index
+                    ? "opacity-70 shadow-lg"
+                    : "opacity-100"
+                } ${
+                  draggedIndex === index
+                    ? "ring-2 ring-purple-500 ring-opacity-50 shadow-lg"
+                    : ""
+                }`}
+                data-entry-index={index}
+              >
+                <div className="ml-0">
+                  <EditableEntryCard
+                    entry={entry}
+                    index={index}
+                    onUpdate={handleUpdateEntry}
+                    onDelete={handleDeleteEntry}
+                    draggable={true}
+                  />
+                </div>
               </div>
-              <div className="ml-10 h-full">
-                <EditableEntryCard
-                  entry={entry}
-                  index={index}
-                  onUpdate={handleUpdateEntry}
-                  onDelete={handleDeleteEntry}
-                />
-              </div>
-            </div>
+              {/* Render drop indicator after each item */}
+              {renderDropIndicator(index + 1)}
+            </React.Fragment>
           ))}
+
+          {/* If there are no entries, add a drop indicator for the list */}
+          {localEntries.length === 0 && renderDropIndicator(0)}
+
+          {/* Add a special drop area for the bottom of the list */}
+          <div
+            ref={bottomDropAreaRef}
+            className="h-16 w-full mt-2"
+            data-bottom-drop-area="true"
+          />
         </div>
       </div>
 
-      {localEntries.length === 0 && (
+      {localEntries.length === 0 && !isDragging && (
         <div className="text-center p-6 bg-slate-700/30 rounded-lg border border-slate-600 my-4">
           <p className="text-gray-400">No entries to display.</p>
           <button
