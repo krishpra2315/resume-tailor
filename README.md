@@ -23,7 +23,7 @@
 
 ## Impact
 
-- Over **300+ users** have used Resume Tailor to generate optimized, job-ready resumes
+- Over **100 users** have used Resume Tailor to generate optimized, job-ready resumes
 - Reduced resume tailoring time by **85%** compared to manual editing
 - Enabled students and job seekers to quickly adapt to new job postings in minutes
 
