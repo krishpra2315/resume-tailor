@@ -37,6 +37,6 @@
 ## Contributions & Feedback
 
 I'm actively improving the platform and would love to hear your feedback!  
-If you’re a recruiter or engineer curious about the project, feel free to [connect with me](https://linkedin.com/in/your-profile).
+If you’re a recruiter or engineer curious about the project, feel free to [connect with me](https://www.linkedin.com/in/krish-prasad-a95450189/).
 
 
