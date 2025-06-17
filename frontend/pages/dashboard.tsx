@@ -6,9 +6,7 @@ import {
   faChevronRight,
   faChevronLeft,
   faDownload,
-  faSave,
   faFileWord,
-  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { useEffect, useState, useRef, useCallback, forwardRef } from "react";
 import { useRouter } from "next/router";
@@ -100,9 +98,6 @@ export default function Dashboard() {
   const [tailoredResumeEntries, setTailoredResumeEntries] = useState<
     ResumeEntry[]
   >([]);
-  const [isSavingPdf, setIsSavingPdf] = useState<boolean>(false);
-  const [savePdfStatus, setSavePdfStatus] = useState<string | null>(null);
-  const [savePdfFilename, setSavePdfFilename] = useState<string>("");
   const [savePdfPath, setSavePdfPath] = useState<string | null>(null);
   const [isResumePreviewModalOpen, setIsResumePreviewModalOpen] =
     useState<boolean>(false);
@@ -126,7 +121,6 @@ export default function Dashboard() {
 
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const resumeViewRef = useRef<ResumeViewHandles>(null);
 
   // Define steps for Master Resume Processing
   const masterResumeProcessingSteps: ProcessingStep[] = [
@@ -308,9 +302,8 @@ export default function Dashboard() {
     setIsResumePreviewModalOpen(false);
   }, []);
 
-  const handleSaveResume = useCallback((s3Key: string, filename: string) => {
+  const handleSaveResume = useCallback((s3Key: string) => {
     setSavePdfPath(s3Key);
-    setSavePdfFilename(filename);
     // Close the modal after a short delay to let the user see the success message
     setTimeout(() => {
       setIsResumePreviewModalOpen(false);
@@ -328,8 +321,6 @@ export default function Dashboard() {
       const resultId = response.resultId;
       router.push(`/score/${resultId}`);
       setIsScoring(false);
-    } else {
-      setSavePdfStatus("Please save the PDF before scoring.");
     }
   };
 
@@ -371,7 +362,6 @@ export default function Dashboard() {
     url: string;
   }) => {
     setSelectedTailoredResume(resume);
-    // Reset the job description when selecting a new resume
     setTailoredJobDescription("");
   };
 
@@ -379,7 +369,6 @@ export default function Dashboard() {
     return <Loading loadingText="Loading Dashboard..." />;
   }
 
-  // Show MultiStepProcessingLoader for master resume upload
   if (isUploading) {
     return (
       <MultiStepProcessingLoader

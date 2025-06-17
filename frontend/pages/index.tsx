@@ -240,12 +240,6 @@ const Home: React.FC = () => {
     [handleResumeFileChange]
   );
 
-  const handleJobDescriptionChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    setJobDescription(event.target.value.slice(0, MAX_CHARACTERS));
-  };
-
   const handleScoreResume = async () => {
     setIsScoring(true);
     try {
