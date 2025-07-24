@@ -19,6 +19,7 @@ export async function getServerSideProps(context: GetServerSidePropsContext) {
     const result: GetScoreResponseBody = await scoreHTTPClient.getScore(
       resultId
     );
+    console.log("result", result);
     return {
       props: { result },
     };
@@ -168,13 +169,16 @@ export default function ScorePage({
           </h2>
           <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
             {result.feedback
-              .filter((item) => typeof item === "string" && item.trim() !== "")
-              .map((item, index) => (
+              .split("\n\n") // Split by double newlines to create paragraphs
+              .filter((paragraph) => paragraph.trim() !== "") // Remove empty paragraphs
+              .map((paragraph, index) => (
                 <div
                   key={index}
                   className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
                 >
-                  <p className="text-gray-300 leading-relaxed">{item}</p>
+                  <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    {paragraph.trim()}
+                  </p>
                 </div>
               ))}
           </div>
