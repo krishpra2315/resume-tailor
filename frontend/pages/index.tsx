@@ -29,6 +29,7 @@ import {
 import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Image from "next/image";
 import MultiStepProcessingLoader from "@/components/MultiStepProcessingLoader";
+import TextareaWithCounter from "@/components/TextareaWithCounter";
 
 interface ProcessingStep {
   id: number | string;
@@ -40,6 +41,8 @@ const inriaSans = Inria_Sans({
   subsets: ["latin"],
   weight: ["300", "400", "700"],
 });
+
+const MAX_CHARACTERS = 5000; // You can adjust this number as needed
 
 const Home: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -236,12 +239,6 @@ const Home: React.FC = () => {
     },
     [handleResumeFileChange]
   );
-
-  const handleJobDescriptionChange = (
-    event: React.ChangeEvent<HTMLTextAreaElement>
-  ) => {
-    setJobDescription(event.target.value);
-  };
 
   const handleScoreResume = async () => {
     setIsScoring(true);
@@ -537,10 +534,13 @@ const Home: React.FC = () => {
           </div>
 
           <div className="w-full md:w-1/2 h-100 flex flex-col">
-            <textarea
-              placeholder="Paste the Job Description here..."
+            <TextareaWithCounter
               value={jobDescription}
-              onChange={handleJobDescriptionChange}
+              onChange={(e) =>
+                setJobDescription(e.target.value.slice(0, MAX_CHARACTERS))
+              }
+              placeholder="Paste the Job Description here..."
+              maxLength={MAX_CHARACTERS}
               className="p-4 text-white border border-gray-600 rounded-lg bg-slate-800 shadow w-full h-full resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 placeholder-gray-500"
             />
           </div>

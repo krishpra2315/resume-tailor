@@ -14,7 +14,7 @@ export interface GetScoreResponseBody {
   fileContent: string;
   jobDescription: string;
   score: number;
-  feedback: string[];
+  feedback: string;
 }
 
 export default class scoreHTTPClient {

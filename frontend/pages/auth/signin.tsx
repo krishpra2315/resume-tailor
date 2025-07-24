@@ -23,7 +23,6 @@ const SignInPage: React.FC = () => {
       username
     );
 
-    // Log current Amplify config right before calling signIn
     try {
       const currentConfig = Amplify.getConfig();
       console.log(
@@ -72,11 +71,8 @@ const SignInPage: React.FC = () => {
         setError(
           "Sign-in successful, but further steps might be required. Please check console."
         );
-        // Potentially redirect to a page to handle nextStep, e.g., MFA
-        // router.push(`/auth/confirm-signin?username=${username}`);
       }
     } catch (err) {
-      // Catch block will now also catch the timeout error
       console.error(
         "Vercel @ handleSignIn: Error signing in (or timeout):",
         err

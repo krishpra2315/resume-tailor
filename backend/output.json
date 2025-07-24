@@ -1,0 +1,1 @@
+{"statusCode": 500, "body": "{\"error\": \"Internal Server Error: An error occurred (InvalidS3ObjectException) when calling the DetectDocumentText operation: Unable to get object metadata from S3. Check object key, region and/or access permissions.\"}"}
