@@ -10,6 +10,12 @@ export interface ResumeEntry {
   description?: string;
 }
 
+export interface TailoredResumeEntry {
+  original: ResumeEntry;
+  tailored: ResumeEntry;
+  hasChanges: boolean;
+}
+
 export interface GetMasterResumeResponseBody {
   url: string;
   entries: ResumeEntry[];
@@ -28,7 +34,7 @@ export interface TailorMasterResumeBody {
 }
 
 export interface TailorMasterResumeResponseBody {
-  resumeItems: ResumeEntry[];
+  resumeItems: TailoredResumeEntry[];
 }
 
 export interface GetTailoredResumesResponseBody {

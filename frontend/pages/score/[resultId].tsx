@@ -134,11 +134,26 @@ export default function ScorePage({
 
           <div className="flex-1">
             {activeTab === "resume" && (
-              <iframe
-                src={`${result.fileContent}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                className="w-full h-[84vh] border-0 rounded-lg"
-                title="Resume Preview"
-              />
+              <>
+                {result.fileContent.startsWith("http") ? (
+                  // PDF mode: Display as iframe
+                  <iframe
+                    src={`${result.fileContent}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                    className="w-full h-[84vh] border-0 rounded-lg"
+                    title="Resume Preview"
+                  />
+                ) : (
+                  // Text mode: Display as formatted text
+                  <div className="w-full h-[84vh] bg-slate-800 p-4 md:p-6 overflow-y-scroll rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4 text-white border-b border-slate-600 pb-2">
+                      Resume Content
+                    </h3>
+                    <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-mono">
+                      {result.fileContent}
+                    </pre>
+                  </div>
+                )}
+              </>
             )}
             {activeTab === "jobDescription" && (
               <div className="w-full bg-slate-800 p-4 md:p-6 overflow-y-scroll rounded-lg">
@@ -168,19 +183,34 @@ export default function ScorePage({
             Feedback & Suggestions
           </h2>
           <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
-            {result.feedback
-              .split("\n\n") // Split by double newlines to create paragraphs
-              .filter((paragraph) => paragraph.trim() !== "") // Remove empty paragraphs
-              .map((paragraph, index) => (
-                <div
-                  key={index}
-                  className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
-                >
-                  <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {paragraph.trim()}
-                  </p>
-                </div>
-              ))}
+            {(() => {
+              // Handle both array and string formats for backward compatibility
+              const feedbackItems = Array.isArray(result.feedback)
+                ? result.feedback
+                : [result.feedback]; // Convert string to array
+
+              return feedbackItems
+                .filter(
+                  (feedbackItem) =>
+                    typeof feedbackItem === "string" &&
+                    feedbackItem.trim() !== ""
+                )
+                .map((feedbackItem, index) => (
+                  <div
+                    key={index}
+                    className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mt-1">
+                        {index + 1}
+                      </div>
+                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap flex-1">
+                        {feedbackItem.trim()}
+                      </p>
+                    </div>
+                  </div>
+                ));
+            })()}
           </div>
         </div>
       </div>
