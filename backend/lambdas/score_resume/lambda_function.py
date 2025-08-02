@@ -47,29 +47,67 @@ And here is the candidate's resume:
 {resume_text}
 --- RESUME END ---
 
-Your task is to analyze this resume against the job description and provide a detailed assessment. Return your response as a JSON object with the following structure:
+**CRITICAL FIRST STEP - Job Description Validation:**
+
+Before evaluating the resume, you must first assess whether the provided job description is valid and substantive enough for meaningful evaluation. 
+
+**Invalid Job Description Criteria:**
+- Contains only a few words (less than 10 meaningful words)
+- Lacks any specific job requirements, responsibilities, or role details
+- Is just a job title without description (e.g., "Software Engineer", "Manager", "Sales")
+- Contains nonsensical text, random words, or placeholder text
+- Is clearly not a legitimate job posting
+
+**If the job description is invalid:** Return a score of 0 and provide feedback explaining that a proper job description is required for accurate evaluation.
+
+**If the job description is valid:** Proceed with the full evaluation below.
+
+Your task is to score the resume on a scale of 0 to 100. A score of 0 indicates absolutely no match, disqualifying factors, or invalid job description, while 100 represents a perfect alignment. Be exacting in your evaluation.
+
+**Scoring Rubric & Penalties (for valid job descriptions only):**
+
+1.  **Fundamental Alignment (Weight: 40%)**:
+    * **Industry/Role Match**: Is the resume's career trajectory and core skill set aligned with the industry and role described in the job description?
+        * **Severe Mismatch**: If the resume is for a completely different field (e.g., a software engineering resume for a botany position), the score in this section should be 0, leading to a very low overall score (likely under 10). Clearly state this fundamental misalignment.
+    * **Experience Level & Availability**:
+        * If the job description specifies an experience level (e.g., "entry-level," "5+ years") and the resume clearly indicates a significant mismatch (e.g., a student resume for a senior role, or a senior executive resume for an explicitly entry-level role), penalize heavily.
+        * If the job is full-time and the resume indicates the candidate is a student who is not graduating soon or otherwise not available for full-time work as implied by the JD, this is a critical mismatch. Penalize heavily and explain why.
+
+2.  **Technical Fit & Key Skills (Weight: 30%)**:
+    * **Presence of Required Skills**: Identify essential keywords, technologies, and skills explicitly mentioned in the job description.
+        * For each **essential** skill from the JD *missing* in the resume, deduct significant points.
+        * For skills present in the resume that *match* the JD, award points.
+    * **Absence of Irrelevant Skills**:
+        * Skills listed in the resume that are *not relevant* to the job description should **not** add to the score and may slightly detract if they create a sense of lack of focus for *this specific role*. Do not heavily penalize for extra skills unless they completely overshadow relevant ones.
+
+3.  **Relevant Experience & Accomplishments (Weight: 20%)**:
+    * Does the work history and project experience directly relate to the responsibilities and requirements outlined in the job description?
+    * Are accomplishments quantified and do they demonstrate impact relevant to the target role?
+    * Lack of directly relevant experience should result in a lower score in this section.
+
+4.  **Clarity, Formatting, and Professionalism (Weight: 10%)**:
+    * Is the resume easy to read, well-organized, and free of significant grammatical errors or typos?
+    * Is the information presented in a professional manner?
+    * While important, this should not salvage a resume that is a poor fit in terms of alignment, skills, or experience.
+
+**Feedback Requirements:**
+
+* For invalid job descriptions: Explain that a detailed job description with specific requirements, responsibilities, and qualifications is needed for accurate resume evaluation.
+* For valid job descriptions: Provide specific examples from the resume that either support a good match or highlight a mismatch with the job description.
+* When skills from the job description are missing in the resume, explicitly state these missing skills and suggest that you consider adding them if you have that experience.
+* If penalizing for fundamental misalignments (like industry mismatch or availability issues), clearly explain this as the primary reason for a low score.
+* Structure your comments as an array of 3 distinct, substantive string paragraphs.
+* Ensure at least one actionable point of improvement is included, even for strong resumes. For very poor matches, the primary improvement point might be to seek roles more aligned with your current resume.
+
+**Output Format:**
+
+Respond *only* in the following JSON format WITHOUT the markdown formatting:
 
 {{
-  "score": 85,
-  "feedback": "Your detailed feedback here..."
+"score": <numeric score between 0 and 100>,
+"feedback": ["Detailed feedback point 1, including specific examples and direct address.", "Detailed feedback point 2, continuing the evaluation with actionable advice.", "Detailed feedback point 3, summarizing key strengths or critical areas for improvement based on the scoring rubric."]
 }}
-
-The score should be an integer from 0 to 100, where:
-- 90-100: Exceptional fit with all key requirements and impressive relevant experience
-- 80-89: Strong fit with most key requirements and good relevant experience
-- 70-79: Good fit with some key requirements and reasonable relevant experience
-- 60-69: Moderate fit with basic requirements and limited relevant experience
-- 50-59: Weak fit with minimal requirements and little relevant experience
-- Below 50: Poor fit with significant gaps in requirements
-
-In your feedback, be direct and constructive. Address:
-1. How well your experience aligns with the key requirements
-2. Specific strengths that make you a good candidate
-3. Areas where you fall short or have gaps
-4. Specific improvements you could make to strengthen your candidacy
-5. Any red flags or concerns about your background
-
-Be honest and thorough in your assessment. Your goal is to provide valuable insights that help the candidate understand their fit for this role and how to improve their application."""
+"""
 
 def lambda_handler(event, context):
     # Initialize logger
@@ -79,13 +117,39 @@ def lambda_handler(event, context):
     try:
         logger.info("Parsing request body")
         body = json.loads(event['body'])
-        s3_key = body['s3_key']
+        
+        # Support both s3_key (PDF) and resume_text (direct text) input modes
+        s3_key = body.get('s3_key')
+        resume_text = body.get('resume_text')
         job_description = body['job_description']
-        is_guest = s3_key.startswith('guest/')
+        with_auth = body.get('with_auth', False)  # Default to False for backward compatibility
+        
+        # Validate that exactly one input method is provided
+        if not s3_key and not resume_text:
+            logger.error("Neither s3_key nor resume_text provided")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Either s3_key or resume_text must be provided'})
+            }
+        
+        if s3_key and resume_text:
+            logger.error("Both s3_key and resume_text provided")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Only one of s3_key or resume_text should be provided'})
+            }
+        
+        # Determine if this is a guest request based on s3_key or default to false for text input
+        is_guest = s3_key.startswith('guest/') if s3_key else False
+        use_textract = bool(s3_key)  # Only use Textract if we have an S3 key
         
         logger.info("Request parsed successfully", {
             's3_key': s3_key,
+            'has_resume_text': bool(resume_text),
+            'resume_text_length': len(resume_text) if resume_text else None,
+            'use_textract': use_textract,
             'is_guest': is_guest,
+            'with_auth': with_auth,
             'job_description_length': len(job_description)
         })
         
@@ -93,47 +157,52 @@ def lambda_handler(event, context):
         logger.info("Initializing rate limiter")
         rate_limiter = create_rate_limiter()
         
-        # Get user identifier and check rate limits
-        if is_guest:
-            identifier, user_type = rate_limiter.get_user_identifier(event)
-        else:
-            claims = event.get('requestContext', {}).get('authorizer', {}).get('jwt', {}).get('claims', {})
-            identifier, user_type = rate_limiter.get_user_identifier(event, claims)
+        # Always use IP-based identification for score_resume
+        # But apply different rate limits based on with_auth parameter
+        source_ip = event.get('requestContext', {}).get('identity', {}).get('sourceIp', 'unknown')
+        identifier = f"guest_{source_ip}"
+        user_type = 'user' if with_auth else 'guest'
         
         logger.info("User identified", {
             'user_type': user_type,
-            'identifier': identifier if not identifier.startswith('guest_') else 'guest_***'
+            'identifier': 'guest_***',  # Always hide IP for privacy
+            'with_auth': with_auth,
+            'rate_limit_applied': f"{'user' if with_auth else 'guest'} limits"
         })
         
-        # Check both Textract and Bedrock rate limits before processing
-        logger.info("Checking Textract rate limits")
-        textract_success, textract_count, textract_limit = rate_limiter.check_and_increment_usage(
-            identifier, user_type, 'textract_requests'
-        )
-        
-        logger.log_rate_limit_check(identifier, user_type, 'textract_requests', textract_success, textract_count, textract_limit)
-        
-        if not textract_success:
-            logger.warning("Textract rate limit exceeded", {
-                'current_count': textract_count,
-                'limit': textract_limit
-            })
-            return {
-                'statusCode': 429,
-                'headers': {
-                    'Content-Type': 'application/json',
-                    'X-RateLimit-Limit': str(textract_limit),
-                    'X-RateLimit-Remaining': '0',
-                    'X-RateLimit-Reset': str(int(time.time()) + (24 * 3600))
-                },
-                'body': json.dumps({
-                    'error': 'Daily Textract API limit exceeded',
-                    'message': f'You have exceeded the daily limit of {textract_limit} document processing requests. Please try again tomorrow.',
-                    'current_usage': textract_count,
-                    'daily_limit': textract_limit,
-                    'user_type': user_type
+        # Check Textract rate limits only if we're using PDF processing
+        textract_success, textract_count, textract_limit = True, 0, 0
+        if use_textract:
+            logger.info("Checking Textract rate limits")
+            textract_success, textract_count, textract_limit = rate_limiter.check_and_increment_usage(
+                identifier, user_type, 'textract_requests'
+            )
+            
+            logger.log_rate_limit_check(identifier, user_type, 'textract_requests', textract_success, textract_count, textract_limit)
+            
+            if not textract_success:
+                logger.warning("Textract rate limit exceeded", {
+                    'current_count': textract_count,
+                    'limit': textract_limit
                 })
-            }
+                return {
+                    'statusCode': 429,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                        'X-RateLimit-Limit': str(textract_limit),
+                        'X-RateLimit-Remaining': '0',
+                        'X-RateLimit-Reset': str(int(time.time()) + (24 * 3600))
+                    },
+                    'body': json.dumps({
+                        'error': 'Daily Textract API limit exceeded',
+                        'message': f'You have exceeded the daily limit of {int(textract_limit)} document processing requests. Please try again tomorrow.',
+                        'current_usage': int(textract_count),
+                        'daily_limit': int(textract_limit),
+                        'user_type': user_type
+                    })
+                }
+        else:
+            logger.info("Skipping Textract rate limit check - using direct text input")
         
         logger.info("Checking Bedrock rate limits")
         bedrock_success, bedrock_count, bedrock_limit = rate_limiter.check_and_increment_usage(
@@ -157,9 +226,9 @@ def lambda_handler(event, context):
                 },
                 'body': json.dumps({
                     'error': 'Daily Bedrock API limit exceeded',
-                    'message': f'You have exceeded the daily limit of {bedrock_limit} AI processing requests. Please try again tomorrow.',
-                    'current_usage': bedrock_count,
-                    'daily_limit': bedrock_limit,
+                    'message': f'You have exceeded the daily limit of {int(bedrock_limit)} AI processing requests. Please try again tomorrow.',
+                    'current_usage': int(bedrock_count),
+                    'daily_limit': int(bedrock_limit),
                     'user_type': user_type
                 })
             }
@@ -237,12 +306,29 @@ def lambda_handler(event, context):
         try:
             # First attempt: Clean control characters before parsing JSON
             cleaned_text = clean_json_string(raw_text)
+            
+            # Handle markdown code blocks (```json ... ```)
+            if cleaned_text.strip().startswith('```'):
+                # Find the first { and last } to extract just the JSON part
+                start_idx = cleaned_text.find('{')
+                end_idx = cleaned_text.rfind('}')
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    cleaned_text = cleaned_text[start_idx:end_idx+1]
+            
             content = json.loads(cleaned_text)
         except json.JSONDecodeError as e:
             # Fallback attempts with different cleaning strategies
             try:
                 # Attempt 2: More aggressive cleaning - only keep ASCII printable + newlines/tabs
                 ascii_only = ''.join(c for c in raw_text if ord(c) < 128 and (c.isprintable() or c in '\n\t\r '))
+                
+                # Handle markdown code blocks for ASCII text too
+                if ascii_only.strip().startswith('```'):
+                    start_idx = ascii_only.find('{')
+                    end_idx = ascii_only.rfind('}')
+                    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                        ascii_only = ascii_only[start_idx:end_idx+1]
+                
                 content = json.loads(ascii_only)
                 logger.info("Successfully parsed AI response using ASCII-only fallback")
             except json.JSONDecodeError:
@@ -250,6 +336,14 @@ def lambda_handler(event, context):
                     # Attempt 3: Replace all problematic chars with spaces and fix JSON structure
                     safe_text = re.sub(r'[^\x20-\x7E\n\t\r]', ' ', raw_text)  # Keep only printable ASCII + whitespace
                     safe_text = re.sub(r'\s+', ' ', safe_text)  # Collapse multiple spaces
+                    
+                    # Handle markdown code blocks for safe text too
+                    if safe_text.strip().startswith('```'):
+                        start_idx = safe_text.find('{')
+                        end_idx = safe_text.rfind('}')
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            safe_text = safe_text[start_idx:end_idx+1]
+                    
                     content = json.loads(safe_text)
                     logger.info("Successfully parsed AI response using safe ASCII replacement")
                 except json.JSONDecodeError:
@@ -336,10 +430,10 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'headers': {
                 'Content-Type': 'application/json',
-                'X-RateLimit-Textract-Limit': str(textract_limit),
-                'X-RateLimit-Textract-Remaining': str(textract_limit - textract_count),
-                'X-RateLimit-Bedrock-Limit': str(bedrock_limit),
-                'X-RateLimit-Bedrock-Remaining': str(bedrock_limit - bedrock_count),
+                'X-RateLimit-Textract-Limit': str(int(textract_limit)),
+                'X-RateLimit-Textract-Remaining': str(int(textract_limit) - int(textract_count)),
+                'X-RateLimit-Bedrock-Limit': str(int(bedrock_limit)),
+                'X-RateLimit-Bedrock-Remaining': str(int(bedrock_limit) - int(bedrock_count)),
                 'X-RateLimit-Reset': str(int(time.time()) + (24 * 3600))
             },
             'body': json.dumps({

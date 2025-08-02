@@ -168,19 +168,34 @@ export default function ScorePage({
             Feedback & Suggestions
           </h2>
           <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
-            {result.feedback
-              .split("\n\n") // Split by double newlines to create paragraphs
-              .filter((paragraph) => paragraph.trim() !== "") // Remove empty paragraphs
-              .map((paragraph, index) => (
-                <div
-                  key={index}
-                  className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
-                >
-                  <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-                    {paragraph.trim()}
-                  </p>
-                </div>
-              ))}
+            {(() => {
+              // Handle both array and string formats for backward compatibility
+              const feedbackItems = Array.isArray(result.feedback)
+                ? result.feedback
+                : [result.feedback]; // Convert string to array
+
+              return feedbackItems
+                .filter(
+                  (feedbackItem) =>
+                    typeof feedbackItem === "string" &&
+                    feedbackItem.trim() !== ""
+                )
+                .map((feedbackItem, index) => (
+                  <div
+                    key={index}
+                    className="bg-slate-700/50 hover:bg-slate-600/50 p-5 rounded-lg shadow-lg border border-slate-600 backdrop-blur-sm"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-sm font-semibold mt-1">
+                        {index + 1}
+                      </div>
+                      <p className="text-gray-300 leading-relaxed whitespace-pre-wrap flex-1">
+                        {feedbackItem.trim()}
+                      </p>
+                    </div>
+                  </div>
+                ));
+            })()}
           </div>
         </div>
       </div>

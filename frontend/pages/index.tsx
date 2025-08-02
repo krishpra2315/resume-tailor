@@ -51,6 +51,30 @@ const Home: React.FC = () => {
   const router = useRouter();
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [jobDescription, setJobDescription] = useState<string>("");
+
+  // Helper function to handle rate limit errors
+  const handleRateLimitError = (errorMessage: string) => {
+    if (
+      errorMessage.includes("Daily Bedrock API limit exceeded") ||
+      errorMessage.includes("Daily Textract API limit exceeded") ||
+      errorMessage.includes("limit exceeded")
+    ) {
+      const isGuestError =
+        errorMessage.includes("guest") ||
+        errorMessage.toLowerCase().includes("guest");
+      const message = isGuestError
+        ? "Daily limit reached! As a guest user, you have limited daily resume scoring attempts. Create an account for higher limits, or try again tomorrow."
+        : "Daily API limit exceeded. You've reached your daily limit for resume scoring. Please try again tomorrow.";
+
+      setUploadStatus({
+        message,
+        type: "error",
+      });
+      return true;
+    }
+    return false;
+  };
+
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [currentResumeS3Key, setCurrentResumeS3Key] = useState<string | null>(
     null
@@ -110,7 +134,6 @@ const Home: React.FC = () => {
     const checkUser = async () => {
       try {
         const currentUser: AuthUser | null = await getCurrentUser();
-        console.log(currentUser);
         setUser(currentUser);
         try {
           const attributes = await fetchUserAttributes();
@@ -190,7 +213,6 @@ const Home: React.FC = () => {
           const fileBase64 = await fileToBase64(file);
 
           let response;
-          console.log(user);
           if (user) {
             response = await uploadHTTPClient.uploadResume(fileBase64);
             setCurrentResumeS3Key(response.s3_key);
@@ -198,8 +220,6 @@ const Home: React.FC = () => {
             response = await uploadHTTPClient.uploadResumeGuest(fileBase64);
             setCurrentResumeS3Key(response.s3_key);
           }
-          console.log(response);
-          console.log(currentResumeS3Key);
           setUploadStatus({
             message: "Resume uploaded successfully!",
             type: "success",
@@ -243,14 +263,32 @@ const Home: React.FC = () => {
   const handleScoreResume = async () => {
     setIsScoring(true);
     try {
+      // Check if user is authenticated
+      let isAuthenticated = false;
+      try {
+        const currentUser = await getCurrentUser();
+        isAuthenticated = true;
+      } catch (error) {
+        isAuthenticated = false;
+      }
+
       const response = await scoreHTTPClient.scoreResume(
         currentResumeS3Key as string,
-        jobDescription
+        jobDescription,
+        isAuthenticated
       );
       const resultId = response.resultId;
       router.push(`/score/${resultId}`);
     } catch (error) {
       console.error("Error scoring resume:", error);
+      const errorMessage = (error as Error).message;
+
+      // Check for rate limit errors
+      if (handleRateLimitError(errorMessage)) {
+        setIsScoring(false);
+        return;
+      }
+
       setUploadStatus({
         message: "Failed to score resume. Please try again.",
         type: "error",

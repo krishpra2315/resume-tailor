@@ -21,11 +21,40 @@ BUCKET_NAME = 'resume-tailor-bucket.kp'
 
 
 def clean_json_string(text):
-    """Clean control characters from text that might break JSON parsing"""
+    """Clean control characters and introductory text that might break JSON parsing"""
     # Remove or replace common control characters that break JSON parsing
     # Keep newlines and tabs as they're valid in JSON strings when properly escaped
     cleaned = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', text)
-    return cleaned
+    
+    # Remove common introductory phrases the AI might add
+    intro_phrases = [
+        "Here is the enhanced resume with tailored content:",
+        "Here is the tailored resume:",
+        "Here are the enhanced resume items:",
+        "The enhanced resume with tailored content:",
+        "Enhanced resume:",
+        "Tailored resume:",
+    ]
+    
+    cleaned = cleaned.strip()
+    
+    # Remove any introductory text before the JSON
+    for phrase in intro_phrases:
+        if cleaned.lower().startswith(phrase.lower()):
+            cleaned = cleaned[len(phrase):].strip()
+            break
+    
+    # Find the first '[' or '{' to start JSON
+    start_idx = -1
+    for i, char in enumerate(cleaned):
+        if char in ['[', '{']:
+            start_idx = i
+            break
+    
+    if start_idx > 0:
+        cleaned = cleaned[start_idx:]
+    
+    return cleaned.strip()
 
 
 def lambda_handler(event, context):
@@ -114,25 +143,59 @@ def lambda_handler(event, context):
 
         # Prepare prompt for AI tailoring
         logger.info("Preparing prompt for resume tailoring")
-        prompt = f"""Given the following job description and master resume items, select and return ONLY the most relevant items that best match the job requirements. You should be selective - typically return 60-80% of the original items, focusing on quality over quantity.
+        prompt = f"""Given the following job description and resume items, subtly enhance the content to better match the job requirements while maintaining professional resume formatting. Make minimal, strategic changes that highlight relevant skills naturally.
 
 **Job Description:**
 {job_description}
 
-**Master Resume Items:**
+**Resume Items:**
 {json.dumps(resume_entries, indent=2)}
 
 **Instructions:**
-* Select items that are most relevant to the job description
-* Prioritize items that demonstrate skills, experience, or achievements directly related to the role
-* Include essential items like userInfo, but be selective with experience, projects, and skills
-* Return the EXACT same format and content for selected items - do not modify the text
-* Order items by relevance (most relevant first)
-* Ensure the output is valid JSON
+* Keep ALL resume items - don't remove any entries
+* NEVER modify education sections (degrees, courses, schools) - these are factual and objective
+* PRESERVE exact formatting including newlines, spacing, and line breaks - do not collapse or change whitespace
+* For skills sections: Keep as concise lists or brief phrases, NOT verbose paragraphs
+* For experience descriptions: Make subtle keyword optimizations while maintaining the original tone and style
+* AVOID adding explanatory phrases like "demonstrating strong skills in..." or "providing technical background in..."
+* Keep the professional, concise resume format - no academic or verbose descriptions
+* Only enhance what could realistically have been achieved in the original role/project
+* Maintain the exact same JSON structure and field names
+* Keep userInfo unchanged unless optimizing brief skills/summary sections
+
+**What TO DO:**
+* Subtly incorporate relevant keywords from the job description into existing descriptions
+* Highlight aspects of achievements that align with job requirements
+* Replace generic terms with more specific, relevant technical terms when appropriate
+* Optimize bullet points to emphasize job-relevant accomplishments
+* ACTIVELY ADD relevant skills, programming languages, frameworks, and tools from the job description to skills sections
+* Add technical skills that would logically fit with the person's background and the target role
+* Include relevant technologies, languages, and tools mentioned in the job posting
+
+**What NOT TO DO:**
+* Add verbose explanations or educational descriptions
+* Change factual information (dates, organizations, degrees, course names)
+* Turn concise skill lists into paragraph descriptions
+* Add phrases that explicitly state what skills are being demonstrated
+* Make changes that don't fit the original resume's style and tone
+* Modify newlines, spacing, or formatting - preserve exact whitespace structure
+
+**Output Format:**
+For each resume item, return an object with this structure:
+{{
+  "original": {{ original resume item exactly as provided }},
+  "tailored": {{ enhanced version with subtle, job-relevant optimizations }},
+  "hasChanges": true/false
+}}
 
 **Critical Requirements:**
-* If an item from the input is `{{ "type": "experience", "title": "Engineer", ... }}`, its selected counterpart in the output must also be `{{ "type": "experience", "title": "Engineer", ... }}`.
-* Do **not** include any introductory text, concluding remarks, comments, or any explanations outside of the JSON structure itself.
+* Return a JSON array where each element has "original", "tailored", and "hasChanges" fields
+* Keep all field names and structure identical between original and tailored versions
+* Maintain professional resume formatting - concise, action-oriented, no verbose explanations
+* Ensure the output is valid JSON
+* RESPOND WITH ONLY THE JSON ARRAY - NO introductory text, concluding remarks, comments, or explanations
+* Your response must start with '[' and end with ']'
+* Do not add phrases like "Here is the enhanced resume" or any other text before the JSON
 """
 
         logger.info("Starting Bedrock AI analysis for resume tailoring", {
@@ -154,7 +217,7 @@ def lambda_handler(event, context):
                         "content": prompt
                     }
                 ],
-                "max_tokens": 2048,
+                "max_tokens": 8192,
                 "temperature": 0.3
             })
         )
@@ -168,13 +231,28 @@ def lambda_handler(event, context):
         
         # Clean control characters before parsing JSON
         raw_text = output["content"][0]["text"]
+        logger.info("Raw AI response", {
+            'raw_text_preview': raw_text[:500] if raw_text else 'None',
+            'raw_text_length': len(raw_text) if raw_text else 0,
+            'raw_text_type': type(raw_text).__name__
+        })
+        
         cleaned_text = clean_json_string(raw_text)
+        logger.info("Cleaned AI response", {
+            'cleaned_text_preview': cleaned_text[:500] if cleaned_text else 'None',
+            'cleaned_text_length': len(cleaned_text) if cleaned_text else 0,
+            'cleaned_text_type': type(cleaned_text).__name__
+        })
+        
         tailored_resume = json.loads(cleaned_text)
+        
+        # Count items with changes
+        changes_count = sum(1 for item in tailored_resume if item.get('hasChanges', False)) if isinstance(tailored_resume, list) else 0
         
         logger.info("Resume tailoring completed successfully", {
             'original_entries': len(resume_entries) if isinstance(resume_entries, list) else 0,
             'tailored_entries': len(tailored_resume) if isinstance(tailored_resume, list) else 0,
-            'reduction_percentage': round((1 - (len(tailored_resume) / len(resume_entries))) * 100, 1) if isinstance(resume_entries, list) and isinstance(tailored_resume, list) and len(resume_entries) > 0 else 0,
+            'items_with_changes': changes_count,
             'total_bedrock_duration_ms': round(bedrock_duration, 2),
             'total_dynamodb_duration_ms': round(dynamodb_duration, 2)
         })
