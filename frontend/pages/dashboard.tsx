@@ -21,6 +21,7 @@ import {
   faGraduationCap,
   faLightbulb,
   faFileLines,
+  faChartBar,
 } from "@fortawesome/free-solid-svg-icons";
 import masterHTTPClient from "@/http/masterHTTPClient";
 import ResumeView, { ResumeViewHandles } from "@/components/ResumeView";
@@ -28,7 +29,6 @@ import scoreHTTPClient from "@/http/scoreHTTPClient";
 import Loading from "@/components/Loading";
 import MultiStepProcessingLoader from "@/components/MultiStepProcessingLoader";
 import TextareaWithCounter from "@/components/TextareaWithCounter";
-import TailoredResumeEditor from "@/components/TailoredResumeEditor";
 import TailoredDiffViewer from "@/components/TailoredDiffViewer";
 import ResumePreviewModal from "@/components/ResumePreviewModal";
 import { TailoredResumeEntry } from "@/http/masterHTTPClient";
@@ -241,7 +241,7 @@ export default function Dashboard() {
       setSelectedTailoredResume(tailoredResumes[0]);
       setTailoredJobDescription("");
     }
-  }, [activeTab, tailoredResumes]);
+  }, [activeTab, tailoredResumes, selectedTailoredResume]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -321,9 +321,76 @@ export default function Dashboard() {
     return entries.map((entry) => entry.tailored);
   };
 
-  const handleOpenResumePreviewModal = useCallback(() => {
-    setIsResumePreviewModalOpen(true);
-  }, []);
+  // Convert resume entries to text format for scoring
+  const convertEntriesToText = (entries: ResumeEntry[]): string => {
+    // Group entries by type
+    const groupedEntries = entries.reduce((acc, entry) => {
+      if (!acc[entry.type]) {
+        acc[entry.type] = [];
+      }
+      acc[entry.type].push(entry);
+      return acc;
+    }, {} as Record<string, ResumeEntry[]>);
+
+    // Define section order
+    const sectionOrder = [
+      "userInfo",
+      "education",
+      "experience",
+      "project",
+      "skills",
+    ];
+
+    let resumeText = "";
+
+    // Process sections in order
+    sectionOrder.forEach((sectionType) => {
+      const entries = groupedEntries[sectionType];
+      if (!entries || entries.length === 0) return;
+
+      // Add section header
+      if (sectionType !== "userInfo") {
+        resumeText += `\n${sectionType.toUpperCase()}\n`;
+      }
+
+      entries.forEach((entry) => {
+        if (sectionType === "userInfo") {
+          // Handle user info section
+          if (entry.title) resumeText += `${entry.title}\n`;
+          if (entry.description) resumeText += `${entry.description}\n`;
+        } else if (sectionType === "skills") {
+          // Handle skills section
+          if (entry.title && entry.description) {
+            resumeText += `${entry.title}: ${entry.description}\n`;
+          } else if (entry.description) {
+            resumeText += `${entry.description}\n`;
+          }
+        } else {
+          // Handle experience, education, project sections
+          if (entry.title) resumeText += `${entry.title}\n`;
+          if (entry.organization) resumeText += `${entry.organization}\n`;
+          if (entry.startDate || entry.endDate) {
+            const dateRange = [entry.startDate, entry.endDate]
+              .filter(Boolean)
+              .join(" - ");
+            if (dateRange) resumeText += `${dateRange}\n`;
+          }
+          if (entry.description) {
+            // Split description by newlines and add each as a separate line
+            const descriptionLines = entry.description
+              .split("\n")
+              .filter((line) => line.trim());
+            descriptionLines.forEach((line) => {
+              resumeText += `${line}\n`;
+            });
+          }
+          resumeText += "\n"; // Add extra space between entries
+        }
+      });
+    });
+
+    return resumeText.trim();
+  };
 
   const handleCloseResumePreviewModal = useCallback(() => {
     setIsResumePreviewModalOpen(false);
@@ -344,9 +411,9 @@ export default function Dashboard() {
         // Check if user is authenticated
         let isAuthenticated = false;
         try {
-          const currentUser = await getCurrentUser();
+          await getCurrentUser();
           isAuthenticated = true;
-        } catch (error) {
+        } catch {
           isAuthenticated = false;
         }
 
@@ -397,15 +464,66 @@ export default function Dashboard() {
       // Check if user is authenticated
       let isAuthenticated = false;
       try {
-        const currentUser = await getCurrentUser();
+        await getCurrentUser();
         isAuthenticated = true;
-      } catch (error) {
+      } catch {
         isAuthenticated = false;
       }
 
       const response = await scoreHTTPClient.scoreResume(
         s3Key,
         tailoredJobDescription,
+        isAuthenticated
+      );
+
+      const resultId = response.resultId;
+      router.push(`/score/${resultId}`);
+    } catch (error) {
+      console.error("Scoring failed:", error);
+      const errorMessage = (error as Error).message;
+
+      // Check for rate limit errors
+      if (handleRateLimitError(errorMessage)) {
+        return;
+      }
+      setUploadStatus({
+        message: "Failed to score resume. Please try again.",
+        type: "error",
+      });
+    } finally {
+      setIsScoring(false);
+    }
+  };
+
+  const handleScoreCurrentTailoredResume = async () => {
+    if (!tailoredResumeEntries || tailoredResumeEntries.length === 0) {
+      alert("No tailored resume available to score.");
+      return;
+    }
+
+    if (!jobDescription.trim()) {
+      alert("Please enter a job description to score against.");
+      return;
+    }
+
+    setIsScoring(true);
+    try {
+      // Convert tailored resume entries to text
+      const tailoredEntries = extractTailoredEntries(tailoredResumeEntries);
+      const resumeText = convertEntriesToText(tailoredEntries);
+
+      // Check if user is authenticated
+      let isAuthenticated = false;
+      try {
+        await getCurrentUser();
+        isAuthenticated = true;
+      } catch {
+        isAuthenticated = false;
+      }
+
+      const response = await scoreHTTPClient.scoreResumeText(
+        resumeText,
+        jobDescription,
         isAuthenticated
       );
 
@@ -749,13 +867,53 @@ export default function Dashboard() {
                       Back to Resume Builder
                     </button>
 
-                    <button
-                      onClick={handleScore}
-                      disabled={!savePdfPath}
-                      className="ml-auto px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2"
-                    >
-                      Score This Resume
-                    </button>
+                    <div className="ml-auto flex gap-2">
+                      {tailoredResumeEntries &&
+                        tailoredResumeEntries.length > 0 && (
+                          <button
+                            onClick={handleScoreCurrentTailoredResume}
+                            disabled={!jobDescription.trim() || isScoring}
+                            className={`px-4 py-2 text-md font-semibold text-white bg-blue-600 rounded-md shadow hover:bg-blue-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
+                              !jobDescription.trim() || isScoring
+                                ? "opacity-50 cursor-not-allowed"
+                                : ""
+                            }`}
+                          >
+                            {isScoring ? (
+                              <>
+                                <FontAwesomeIcon icon={faSpinner} spin />{" "}
+                                Scoring...
+                              </>
+                            ) : (
+                              <>
+                                <FontAwesomeIcon icon={faChartBar} /> Score
+                                Tailored Resume
+                              </>
+                            )}
+                          </button>
+                        )}
+
+                      <button
+                        onClick={handleScore}
+                        disabled={!savePdfPath || isScoring}
+                        className={`px-4 py-2 text-md font-semibold text-white bg-green-600 rounded-md shadow hover:bg-green-700 transition duration-200 ease-in-out flex items-center justify-center gap-2 ${
+                          !savePdfPath || isScoring
+                            ? "opacity-50 cursor-not-allowed"
+                            : ""
+                        }`}
+                      >
+                        {isScoring ? (
+                          <>
+                            <FontAwesomeIcon icon={faSpinner} spin /> Scoring...
+                          </>
+                        ) : (
+                          <>
+                            <FontAwesomeIcon icon={faChartBar} /> Score Saved
+                            PDF
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>

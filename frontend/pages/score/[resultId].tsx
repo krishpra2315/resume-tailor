@@ -134,11 +134,26 @@ export default function ScorePage({
 
           <div className="flex-1">
             {activeTab === "resume" && (
-              <iframe
-                src={`${result.fileContent}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
-                className="w-full h-[84vh] border-0 rounded-lg"
-                title="Resume Preview"
-              />
+              <>
+                {result.fileContent.startsWith("http") ? (
+                  // PDF mode: Display as iframe
+                  <iframe
+                    src={`${result.fileContent}#view=FitH&toolbar=0&navpanes=0&scrollbar=0`}
+                    className="w-full h-[84vh] border-0 rounded-lg"
+                    title="Resume Preview"
+                  />
+                ) : (
+                  // Text mode: Display as formatted text
+                  <div className="w-full h-[84vh] bg-slate-800 p-4 md:p-6 overflow-y-scroll rounded-lg">
+                    <h3 className="text-xl font-semibold mb-4 text-white border-b border-slate-600 pb-2">
+                      Resume Content
+                    </h3>
+                    <pre className="whitespace-pre-wrap text-sm md:text-base text-gray-300 leading-relaxed font-mono">
+                      {result.fileContent}
+                    </pre>
+                  </div>
+                )}
+              </>
             )}
             {activeTab === "jobDescription" && (
               <div className="w-full bg-slate-800 p-4 md:p-6 overflow-y-scroll rounded-lg">

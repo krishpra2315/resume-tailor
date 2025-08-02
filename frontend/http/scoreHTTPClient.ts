@@ -1,7 +1,8 @@
 import fetchHTTPClient from "./fetchHTTPClient";
 
 export interface ScoreResumeBody {
-  s3_key: string;
+  s3_key?: string;
+  resume_text?: string;
   job_description: string;
   with_auth?: boolean; // Optional parameter for authentication status
 }
@@ -26,6 +27,23 @@ export default class scoreHTTPClient {
   ): Promise<ScoreResumeResponseBody> {
     const scoreResumeRequestBody: ScoreResumeBody = {
       s3_key,
+      job_description,
+      with_auth,
+    };
+
+    return await fetchHTTPClient<ScoreResumeResponseBody>(`/score`, {
+      method: "POST",
+      body: JSON.stringify(scoreResumeRequestBody),
+    });
+  }
+
+  static async scoreResumeText(
+    resume_text: string,
+    job_description: string,
+    with_auth: boolean = false
+  ): Promise<ScoreResumeResponseBody> {
+    const scoreResumeRequestBody: ScoreResumeBody = {
+      resume_text,
       job_description,
       with_auth,
     };

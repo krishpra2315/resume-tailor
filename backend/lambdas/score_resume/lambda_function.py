@@ -139,6 +139,14 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Only one of s3_key or resume_text should be provided'})
             }
         
+        # Validate that resume_text is not empty when provided
+        if resume_text is not None and not resume_text.strip():
+            logger.error("Empty resume_text provided")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'resume_text cannot be empty'})
+            }
+        
         # Determine if this is a guest request based on s3_key or default to false for text input
         is_guest = s3_key.startswith('guest/') if s3_key else False
         use_textract = bool(s3_key)  # Only use Textract if we have an S3 key
@@ -233,35 +241,41 @@ def lambda_handler(event, context):
                 })
             }
 
-        # Extract text from resume using Textract
-        logger.info("Starting Textract document analysis", {
-            'bucket': BUCKET_NAME,
-            's3_key': s3_key
-        })
-        
-        textract_start = time.time()
-        response = textract.detect_document_text(
-            Document={
-                'S3Object': {
-                    'Bucket': BUCKET_NAME,
-                    'Name': s3_key
+        # Extract text from resume using Textract or use provided text
+        textract_duration = 0
+        if use_textract:
+            logger.info("Starting Textract document analysis", {
+                'bucket': BUCKET_NAME,
+                's3_key': s3_key
+            })
+            
+            textract_start = time.time()
+            response = textract.detect_document_text(
+                Document={
+                    'S3Object': {
+                        'Bucket': BUCKET_NAME,
+                        'Name': s3_key
+                    }
                 }
-            }
-        )
-        textract_duration = (time.time() - textract_start) * 1000
-        
-        logger.info("Textract analysis completed", {
-            'duration_ms': round(textract_duration, 2),
-            'blocks_count': len(response['Blocks'])
-        })
+            )
+            textract_duration = (time.time() - textract_start) * 1000
+            
+            logger.info("Textract analysis completed", {
+                'duration_ms': round(textract_duration, 2),
+                'blocks_count': len(response['Blocks'])
+            })
 
-        lines = [item['Text'] for item in response['Blocks'] if item['BlockType'] == 'LINE']
-        resume_text = "\n".join(lines)
-        
-        logger.info("Resume text extracted", {
-            'lines_count': len(lines),
-            'resume_text_length': len(resume_text)
-        })
+            lines = [item['Text'] for item in response['Blocks'] if item['BlockType'] == 'LINE']
+            resume_text = "\n".join(lines)
+            
+            logger.info("Resume text extracted from PDF", {
+                'lines_count': len(lines),
+                'resume_text_length': len(resume_text)
+            })
+        else:
+            logger.info("Using provided resume text directly", {
+                'resume_text_length': len(resume_text)
+            })
 
         prompt = format_prompt(resume_text, job_description)
         
@@ -387,20 +401,33 @@ def lambda_handler(event, context):
         
         item = {
             'resultId': resultId,
-            'resumeId': s3_key,
             'jobDescription': job_description,
             'score': score,
             'feedback': feedback,
             'createdAt': datetime.now().isoformat(),
         }
+        
+        # Store either S3 key (PDF mode) or resume text (text mode)
+        if use_textract:
+            item['resumeId'] = s3_key  # S3 key for PDF mode
+            item['inputMode'] = 'pdf'
+        else:
+            item['resumeText'] = resume_text  # Direct text for text mode
+            item['inputMode'] = 'text'
 
         if is_guest:
             item['ttl'] = int(time.time()) + 3600
             logger.info("Guest result will expire in 1 hour", {'ttl': item['ttl']})
         else:
-            user_id = s3_key.split('/')[1]
-            item['userId'] = user_id
-            logger.info("Authenticated user result (no expiration)", {'user_id': user_id})
+            # Only extract user_id from s3_key if we have an s3_key (PDF mode)
+            if s3_key:
+                user_id = s3_key.split('/')[1]
+                item['userId'] = user_id
+                logger.info("Authenticated user result (no expiration)", {'user_id': user_id})
+            else:
+                # For direct text input mode, we don't have a user_id from s3_key
+                # The result will still be saved but without a specific userId
+                logger.info("Authenticated user result from text input (no s3_key user_id)")
 
         logger.info("Saving results to DynamoDB")
         dynamodb_start = time.time()
@@ -426,16 +453,22 @@ def lambda_handler(event, context):
             'total_dynamodb_duration_ms': round(dynamodb_duration, 2)
         })
 
+        # Prepare response headers
+        headers = {
+            'Content-Type': 'application/json',
+            'X-RateLimit-Bedrock-Limit': str(int(bedrock_limit)),
+            'X-RateLimit-Bedrock-Remaining': str(int(bedrock_limit) - int(bedrock_count)),
+            'X-RateLimit-Reset': str(int(time.time()) + (24 * 3600))
+        }
+        
+        # Only include Textract headers if Textract was used
+        if use_textract:
+            headers['X-RateLimit-Textract-Limit'] = str(int(textract_limit))
+            headers['X-RateLimit-Textract-Remaining'] = str(int(textract_limit) - int(textract_count))
+        
         return {
             'statusCode': 200,
-            'headers': {
-                'Content-Type': 'application/json',
-                'X-RateLimit-Textract-Limit': str(int(textract_limit)),
-                'X-RateLimit-Textract-Remaining': str(int(textract_limit) - int(textract_count)),
-                'X-RateLimit-Bedrock-Limit': str(int(bedrock_limit)),
-                'X-RateLimit-Bedrock-Remaining': str(int(bedrock_limit) - int(bedrock_count)),
-                'X-RateLimit-Reset': str(int(time.time()) + (24 * 3600))
-            },
+            'headers': headers,
             'body': json.dumps({
                 'resultId': resultId
             })

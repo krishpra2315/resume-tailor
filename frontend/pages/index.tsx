@@ -266,9 +266,9 @@ const Home: React.FC = () => {
       // Check if user is authenticated
       let isAuthenticated = false;
       try {
-        const currentUser = await getCurrentUser();
+        await getCurrentUser();
         isAuthenticated = true;
-      } catch (error) {
+      } catch {
         isAuthenticated = false;
       }
 
